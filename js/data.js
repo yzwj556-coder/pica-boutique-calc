@@ -110,19 +110,32 @@ const TEXT = {
   "admin.partCount6": "6 个配件",
   "admin.partCount7": "7 个配件",
   "admin.prices": "各配件价格（合计自动计算）",
-  "admin.image": "套装图片",
-  "admin.imageHint": "可上传图片文件（自动存入浏览器），或将图片放入仓库 images/ 文件夹后填写文件名",
+  "admin.imageFemale": "女装图片",
+  "admin.imageMale": "男装图片",
+  "admin.imageHint": "女装图和男装图分开上传/填写；上传的图片自动存入浏览器，放入仓库 images/ 文件夹的图片按 images/<套装名>女装.png、images/<套装名>男装.png 命名即可长期保留",
   "admin.imageFile": "上传图片文件…",
   "admin.imagePath": "或填写图片文件名 / 网址",
-  "admin.femaleImage": "女装图片（可选，留空使用默认）",
-  "admin.maleImage": "男装图片（可选，留空使用默认）",
   "admin.save": "保存",
   "admin.cancel": "取消",
   "admin.delete": "删除该套装（仅自定义套装）",
   "admin.customList": "自定义套装（已添加到页面）",
   "admin.exportDataJs": "💾 导出 data.js 代码片段",
-  "admin.downloadImage": "⬇ 下载图片文件（放入 images/ 文件夹）",
+  "admin.downloadImageF": "⬇ 下载女装图（放入 images/ 文件夹）",
+  "admin.downloadImageM": "⬇ 下载男装图（放入 images/ 文件夹）",
   "admin.fullPrice": "整套合计：{n} 许愿星",
+
+  "account.title": "👤 账号管理",
+  "account.help": "每个账号拥有独立的许愿星库存、已拥有配件、收藏与性别设置，互不影响；时装、图片、页面文字等配置所有账号共用。",
+  "account.add": "➕ 新建账号",
+  "account.rename": "✏️ 重命名",
+  "account.delete": "🗑️ 删除账号",
+  "account.newName": "请输入新账号名称：",
+  "account.renameTo": "请输入新的账号名称：",
+  "account.needName": "账号名称不能为空。",
+  "account.confirmDelete": "确定删除账号「{name}」吗？\n\n该账号的许愿星库存、已拥有配件、收藏、性别等数据将被永久删除。",
+  "account.deleted": "已删除账号「{name}」。",
+  "account.onlyOne": "至少需要保留一个账号。",
+  "account.default": "默认账号",
 
   "edit.textEditor": "页面文字编辑",
   "edit.textHint": "修改后点击「保存文字」即时生效并保存在本地。",
@@ -150,7 +163,7 @@ const TEXT = {
   "msg.importFail": "导入失败：{err}",
   "msg.suitNameExists": "已存在同名套装：{name}",
   "msg.suitNameEmpty": "套装名称不能为空。",
-  "msg.suitSaved": "套装「{name}」已保存。\n\n提示：若要让图片和套装长期保留在网站上（不依赖本浏览器），请点击「下载图片文件」放入仓库 images/ 文件夹，并把导出的 data.js 代码片段合并进 js/data.js。",
+  "msg.suitSaved": "套装「{name}」已保存。\n\n提示：若要让图片和套装长期保留在网站上（不依赖本浏览器），请点击「下载女装图/男装图」放入仓库 images/ 文件夹，并把导出的 data.js 代码片段合并进 js/data.js。",
   "msg.suitDeleted": "已删除套装「{name}」。",
   "msg.confirmDeleteSuit": "确定删除套装「{name}」吗？\n\n其已拥有记录、收藏等数据会一并移除。",
   "msg.confirmSwitchType": "将「{name}」从 {from} 切换为 {to}？\n\n价格将自动套用对应的默认价格体系（已单独修改过价格的套装会保留原价格）。",
@@ -201,7 +214,7 @@ function schemeKeyOf(type, partCount) {
  * 3) 内置时装（印象）列表
  *    - 前 18 套：金装（原网站数据）
  *    - 中 12 套：紫装 6 件（原网站数据）
- *    - 后 29 套：新加入的图片素材，默认按 紫装·6件 处理，
+ *    - 后 28 套：新加入的图片素材，默认按 紫装·6件 处理，
  *      可在网页「编辑模式」里一键改成 金装 / 7件。
  *    每套默认图片按性别命名：images/<套装名>女装.png（女）/ images/<套装名>男装.png（男）。
  *    男装图尚未提供时自动回退用女装图。可选字段覆盖：
@@ -221,13 +234,13 @@ const BUILTIN_SUIT_NAMES = {
     "电球咩咩印象", "雪影娃娃印象", "幽冥眼印象", "雪灵印象",
     "高脚鹬印象", "魔草巫灵印象", "魔眷鸟印象", "奇丽花印象"
   ],
-  // 新加入的 29 套：默认紫装·6件
+  // 新加入的 28 套：默认紫装·6件
   purpleNew: [
     "乌拉塔印象", "千棘盔印象", "卡瓦重印象", "古卷执政官印象", "古卷画魔像印象",
     "咕德帽帽印象", "圆号鱼印象", "小丑公爵印象", "巨鼓象印象", "幻影灵菇印象",
-    "异色咕德帽帽印象", "怖哭菇印象", "捕尘长绒印象", "朔夜伊芙印象", "水灵印象",
+    "怖哭菇印象", "捕尘长绒印象", "朔夜伊芙印象", "水灵印象",
     "流浪鼠印象", "海豹船长印象", "混乱鱿彩印象", "火神印象", "烟花伯爵印象",
-    "画间沉铁兽印象", "画间法师手印象", "秩序鱿墨印象", "袭卡印象", "蹦床松鼠印象",
+    "画间沉铁兽印象", "画间法师手印象", "秩序鱿墨印象", "裘卡印象", "蹦床松鼠印象",
     "迷迷箱怪印象", "里拉鳐印象", "食尘短绒印象", "魔力猫印象"
   ]
 };
@@ -256,4 +269,4 @@ function defaultImagePath(name, gender) {
 }
 
 /* 数据库版本号（用于备份/迁移） */
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;

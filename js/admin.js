@@ -6,8 +6,10 @@
 "use strict";
 
 let currentEditName = null;   // 正在编辑的套装名；null = 新建
-let pendingUpload = null;     // 上传的图片 dataURL
-let pendingUploadName = "";   // 上传的图片文件名
+let pendingUploadF = null;    // 女装上传图片 dataURL
+let pendingUploadM = null;    // 男装上传图片 dataURL
+let pendingUploadNameF = "";  // 女装上传文件名
+let pendingUploadNameM = "";  // 男装上传文件名
 
 /* ---------------- 模态框 ---------------- */
 function openModal(html) {
@@ -17,11 +19,13 @@ function openModal(html) {
 function closeModal() {
 	$("modalMask").classList.remove("open");
 	currentEditName = null;
-	pendingUpload = null;
-	pendingUploadName = "";
+	pendingUploadF = null;
+	pendingUploadM = null;
+	pendingUploadNameF = "";
+	pendingUploadNameM = "";
 }
 
-/* ---------------- 套装名迁移（改名后同步 state/收藏/图片缓存） ---------------- */
+/* ---------------- 套装名迁移（改名后同步 state/收藏/图片缓存，男女装图片一起迁移） ---------------- */
 function migrateSuitName(oldName, newName) {
 	if (oldName === newName) return;
 	if (state[oldName] !== undefined) {
@@ -32,10 +36,12 @@ function migrateSuitName(oldName, newName) {
 		favorites.delete(oldName);
 		favorites.add(newName);
 	}
-	if (idbImages[oldName] !== undefined) {
-		idbImages[newName] = idbImages[oldName];
-		delete idbImages[oldName];
-	}
+	["", "::male"].forEach(function (suf) {
+		if (idbImages[oldName + suf] !== undefined) {
+			idbImages[newName + suf] = idbImages[oldName + suf];
+			delete idbImages[oldName + suf];
+		}
+	});
 }
 
 /* 修改套装属性（自定义 or 内置覆盖）；dropPrices=true 时清除单独价格（回到默认价格体系） */
@@ -116,14 +122,17 @@ function suitEditorHtml(suit) {
 	const scheme = PRICE_SCHEMES[schemeKeyOf(type, partCount)];
 	const isCustom = suit ? customSuits.some(function (s) { return s.name === name; }) : false;
 	const useDefault = suit ? !(suit.prices && suit.prices.length > 0) : true;
-	const imgVal = suit ? (suit.image || "") : "";
 
 	let actions = '<button class="btn-save" id="btnSeSave">' + esc(t("admin.save")) + '</button>'
 		+ '<button class="btn-cancel" id="btnCancelModal">' + esc(t("admin.cancel")) + '</button>';
 	if (isCustom) {
 		actions += '<button class="btn-danger2" id="btnSeDelete">' + esc(t("admin.delete")) + '</button>'
-			+ '<button class="btn-export" id="btnSeDownloadImg">' + esc(t("admin.downloadImage")) + '</button>';
+			+ '<button class="btn-export" id="btnSeDownloadF">' + esc(t("admin.downloadImageF")) + '</button>'
+			+ '<button class="btn-export" id="btnSeDownloadM">' + esc(t("admin.downloadImageM")) + '</button>';
 	}
+
+	const pathF = effectiveImagePath(suit, "female");
+	const pathM = effectiveImagePath(suit, "male");
 
 	return '<h3>' + esc(isNew ? t("admin.title") : t("admin.title") + " · " + name) + '</h3>'
 		+ '<div class="field"><label>' + esc(t("admin.name")) + '</label>'
@@ -143,18 +152,33 @@ function suitEditorHtml(suit) {
 		+ '<div class="price-grid" id="sePriceGrid"></div>'
 		+ '<div class="total-row" id="seTotalRow"></div></div>'
 
-		+ '<div class="field"><label>' + esc(t("admin.image")) + '</label>'
-		+ '<input type="file" id="seImageFile" accept="image/*">'
-		+ '<input type="text" id="seImagePath" placeholder="' + esc(t("admin.imagePath")) + '" value="' + esc(imgVal) + '" style="margin-top:6px">'
-		+ '<img id="sePreview" class="img-preview" alt="">'
-		+ '<div style="font-size:12px;color:#888">' + esc(t("admin.imageHint")) + '</div></div>'
+		+ '<div class="field"><label>' + esc(t("admin.imageFemale")) + '</label>'
+		+ '<input type="file" id="seImageFileF" accept="image/*">'
+		+ '<input type="text" id="seImagePathF" placeholder="' + esc(t("admin.imagePath")) + '" value="' + esc(pathF) + '" style="margin-top:6px">'
+		+ '<img id="sePreviewF" class="img-preview" alt=""></div>'
 
-		+ '<div class="field"><label>' + esc(t("admin.femaleImage")) + '</label>'
-		+ '<input type="text" id="seFemale" value="' + esc(suit ? (suit.femaleImage || "") : "") + '"></div>'
-		+ '<div class="field"><label>' + esc(t("admin.maleImage")) + '</label>'
-		+ '<input type="text" id="seMale" value="' + esc(suit ? (suit.maleImage || "") : "") + '"></div>'
+		+ '<div class="field"><label>' + esc(t("admin.imageMale")) + '</label>'
+		+ '<input type="file" id="seImageFileM" accept="image/*">'
+		+ '<input type="text" id="seImagePathM" placeholder="' + esc(t("admin.imagePath")) + '" value="' + esc(pathM) + '" style="margin-top:6px">'
+		+ '<img id="sePreviewM" class="img-preview" alt=""></div>'
+
+		+ '<div style="font-size:12px;color:#888;margin-bottom:10px">' + esc(t("admin.imageHint")) + '</div>'
 
 		+ '<div class="actions">' + actions + '</div>';
+}
+
+/* 编辑器里展示/保存的图片路径：有浏览器内上传图则为空串，否则为当前生效路径 */
+function effectiveImagePath(suit, gender) {
+	if (!suit) return "";
+	if (idbImages[idbKey(suit.name, gender)]) return "";
+	if (gender === "male") {
+		if (suit.maleImage) return suit.maleImage;
+		if (suit.image) return suit.image;
+		return defaultImagePath(suit.name, "male");
+	}
+	if (suit.femaleImage) return suit.femaleImage;
+	if (suit.image) return suit.image;
+	return defaultImagePath(suit.name, "female");
 }
 
 function refreshPriceGrid() {
@@ -190,16 +214,21 @@ function updateTotal() {
 	if (row) row.innerHTML = t("admin.fullPrice", { n: total });
 }
 
-function onImageFile(e) {
+function onImageFile(e, which) {
 	const file = e.target.files && e.target.files[0];
 	if (!file) return;
 	const reader = new FileReader();
 	reader.onload = function (ev) {
-		pendingUpload = ev.target.result;
-		pendingUploadName = file.name;
-		const pv = $("sePreview");
+		if (which === "M") {
+			pendingUploadM = ev.target.result;
+			pendingUploadNameM = file.name;
+		} else {
+			pendingUploadF = ev.target.result;
+			pendingUploadNameF = file.name;
+		}
+		const pv = $(which === "M" ? "sePreviewM" : "sePreviewF");
 		if (pv) {
-			pv.src = pendingUpload;
+			pv.src = ev.target.result;
 			pv.style.display = "block";
 		}
 	};
@@ -208,8 +237,10 @@ function onImageFile(e) {
 
 function openSuitEditor(name) {
 	currentEditName = name || null;
-	pendingUpload = null;
-	pendingUploadName = "";
+	pendingUploadF = null;
+	pendingUploadM = null;
+	pendingUploadNameF = "";
+	pendingUploadNameM = "";
 	const suit = name ? getSuit(name) : null;
 	openModal(suitEditorHtml(suit));
 
@@ -217,21 +248,25 @@ function openSuitEditor(name) {
 		el.addEventListener("change", refreshPriceGrid);
 	});
 	$("seDefaultPrices").addEventListener("change", refreshPriceGrid);
-	$("seImageFile").addEventListener("change", onImageFile);
+	$("seImageFileF").addEventListener("change", function (e) { onImageFile(e, "F"); });
+	$("seImageFileM").addEventListener("change", function (e) { onImageFile(e, "M"); });
 	$("btnSeSave").addEventListener("click", saveSuitEditor);
 	$("btnCancelModal").addEventListener("click", closeModal);
 	if ($("btnSeDelete")) $("btnSeDelete").addEventListener("click", deleteCustomSuit);
-	if ($("btnSeDownloadImg")) $("btnSeDownloadImg").addEventListener("click", downloadSuitImage);
+	if ($("btnSeDownloadF")) $("btnSeDownloadF").addEventListener("click", function () { downloadSuitImage("female"); });
+	if ($("btnSeDownloadM")) $("btnSeDownloadM").addEventListener("click", function () { downloadSuitImage("male"); });
 
 	refreshPriceGrid();
-	/* 预览当前图片 */
+	/* 预览当前男女装图片 */
 	if (suit) {
-		const src = getSuitImage(suit);
-		if (src) {
-			const pv = $("sePreview");
-			pv.src = src;
-			pv.style.display = "block";
-		}
+		["female", "male"].forEach(function (g) {
+			const src = getSuitImage(suit, g);
+			if (src) {
+				const pv = $(g === "male" ? "sePreviewM" : "sePreviewF");
+				pv.src = src;
+				pv.style.display = "block";
+			}
+		});
 	}
 }
 
@@ -250,9 +285,8 @@ function saveSuitEditor() {
 			prices[parseInt(inp.dataset.i, 10)] = Math.max(0, parseInt(inp.value, 10) || 0);
 		});
 	}
-	const pathVal = $("seImagePath").value.trim();
-	const fImg = $("seFemale").value.trim();
-	const mImg = $("seMale").value.trim();
+	const pathF = $("seImagePathF").value.trim();
+	const pathM = $("seImagePathM").value.trim();
 
 	const editingName = currentEditName;
 	if (editingName && editingName !== name && getSuit(name)) {
@@ -260,20 +294,28 @@ function saveSuitEditor() {
 		return;
 	}
 
+	/* 保存男女装图片（浏览器内上传 → IndexedDB；路径 → 套装字段） */
+	function saveImages(suitObj) {
+		if (pathF) suitObj.femaleImage = pathF; else delete suitObj.femaleImage;
+		if (pathM) suitObj.maleImage = pathM; else delete suitObj.maleImage;
+		if (pendingUploadF) {
+			idbImages[idbKey(name, "female")] = pendingUploadF;
+			IDB.set(idbKey(name, "female"), pendingUploadF).catch(function (e) { console.error(e); });
+		}
+		if (pendingUploadM) {
+			idbImages[idbKey(name, "male")] = pendingUploadM;
+			IDB.set(idbKey(name, "male"), pendingUploadM).catch(function (e) { console.error(e); });
+		}
+	}
+
 	/* ---- 新建 ---- */
 	if (!editingName) {
 		if (getSuit(name)) { alert(t("msg.suitNameExists", { name: name })); return; }
 		const entry = { name: name, type: type, partCount: partCount };
 		if (prices) entry.prices = prices;
-		if (pathVal) entry.image = pathVal;
-		if (fImg) entry.femaleImage = fImg;
-		if (mImg) entry.maleImage = mImg;
+		saveImages(entry);
 		customSuits.push(entry);
 		saveCustomSuits();
-		if (pendingUpload) {
-			idbImages[name] = pendingUpload;
-			IDB.set(name, pendingUpload).catch(function (e) { console.error(e); });
-		}
 		closeModal();
 		render();
 		alert(t("msg.suitSaved", { name: name }));
@@ -289,9 +331,7 @@ function saveSuitEditor() {
 		entry.type = type;
 		entry.partCount = partCount;
 		if (prices) entry.prices = prices; else delete entry.prices;
-		if (pathVal) entry.image = pathVal; else delete entry.image;
-		if (fImg) entry.femaleImage = fImg; else delete entry.femaleImage;
-		if (mImg) entry.maleImage = mImg; else delete entry.maleImage;
+		saveImages(entry);
 		saveCustomSuits();
 	} else {
 		/* 内置套装：记录到 suitOverrides（以原内置名为 key，支持已改过名的情况） */
@@ -309,15 +349,9 @@ function saveSuitEditor() {
 		ov.type = type;
 		ov.partCount = partCount;
 		if (prices) ov.prices = prices; else delete ov.prices;
-		if (pathVal) ov.image = pathVal; else delete ov.image;
-		if (fImg) ov.femaleImage = fImg; else delete ov.femaleImage;
-		if (mImg) ov.maleImage = mImg; else delete ov.maleImage;
+		saveImages(ov);
 		suitOverrides[key] = ov;
 		saveSuitOverrides();
-	}
-	if (pendingUpload) {
-		idbImages[name] = pendingUpload;
-		IDB.set(name, pendingUpload).catch(function (e) { console.error(e); });
 	}
 	closeModal();
 	render();
@@ -332,8 +366,10 @@ function deleteCustomSuit() {
 	saveCustomSuits();
 	delete state[name];
 	if (favorites.has(name)) favorites.delete(name);
-	IDB.del(name).catch(function (e) { console.error(e); });
-	delete idbImages[name];
+	["", "::male"].forEach(function (suf) {
+		IDB.del(name + suf).catch(function (e) { console.error(e); });
+		delete idbImages[name + suf];
+	});
 	saveState();
 	saveFavorites();
 	closeModal();
@@ -341,11 +377,14 @@ function deleteCustomSuit() {
 	alert(t("msg.suitDeleted", { name: name }));
 }
 
-function downloadSuitImage() {
+function downloadSuitImage(gender) {
 	const name = currentEditName;
-	const src = name && idbImages[name];
-	if (!src) { alert("当前套装没有浏览器内上传的图片。"); return; }
-	downloadFile((name || "suit") + ".png", src, "image/png");
+	const src = name && idbImages[idbKey(name, gender)];
+	if (!src) {
+		alert(gender === "male" ? "当前套装没有浏览器内上传的男装图。" : "当前套装没有浏览器内上传的女装图。");
+		return;
+	}
+	downloadFile((name || "suit") + (gender === "male" ? "男装" : "女装") + ".png", src, "image/png");
 }
 
 /* ---------------- 导出 data.js 代码片段（让自定义套装永久内置） ---------------- */
@@ -360,8 +399,8 @@ function exportDataJs() {
 	});
 	const snippet = "/* 自定义套装（来自网页管理面板导出）\n"
 		+ " * 把这段粘贴到 js/data.js 的末尾（EXTRA_SUITS 会自动合并进页面）。\n"
-		+ " * 若套装图片只存在浏览器里，请先点「下载图片文件」放入 images/ 文件夹，\n"
-		+ " * 并给该套装加上 image: \"images/文件名.png\"。\n"
+		+ " * 若套装图片只存在浏览器里，请先点「下载女装图/男装图」放入 images/ 文件夹，\n"
+		+ " * 并给该套装加上 femaleImage/maleImage: \"images/文件名.png\"。\n"
 		+ " */\n"
 		+ "const EXTRA_SUITS = [\n" + list.join(",\n") + "\n];\n";
 	downloadFile("data-extra-suites.js", snippet, "text/javascript");
@@ -448,13 +487,15 @@ function resetSuitOverrides() {
 	alert(t("msg.overridesReset"));
 }
 function resetCustomSuits() {
-	if (!confirm("确定移除全部自定义套装？\n\n其浏览器内保存的图片也会删除。")) return;
+	if (!confirm("确定移除全部自定义套装？\n\n其浏览器内保存的男女装图片也会删除。")) return;
 	const names = customSuits.map(function (s) { return s.name; });
 	names.forEach(function (n) {
 		delete state[n];
 		if (favorites.has(n)) favorites.delete(n);
-		IDB.del(n).catch(function () {});
-		delete idbImages[n];
+		["", "::male"].forEach(function (suf) {
+			IDB.del(n + suf).catch(function () {});
+			delete idbImages[n + suf];
+		});
 	});
 	customSuits = [];
 	saveCustomSuits();

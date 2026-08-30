@@ -69,6 +69,23 @@ body.edit-mode .suit-count-toggle { display: inline-flex !important; }
 .btn-editmode-off { background: #7f8c8d; }
 .btn-editmode-on { background: #e67e22; }
 
+/* ---- 账号管理 ---- */
+.account-panel {
+	background: var(--card);
+	border: 1px solid #e8eaee;
+	border-radius: 10px;
+	padding: 14px 18px;
+	margin-bottom: 18px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
+}
+.account-title { font-size: 15px; font-weight: bold; margin-bottom: 10px; }
+.account-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.account-row select {
+	padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px;
+	font-size: 14px; min-width: 170px; background: #fff;
+}
+.account-row .budget-btn { border: 1px solid #ddd; }
+
 /* ---- 性别 ---- */
 .gender-panel {
 	background: var(--card);

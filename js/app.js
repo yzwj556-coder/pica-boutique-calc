@@ -13,18 +13,21 @@ const LS = {
 	custom: "pb_custom_suits_v1",
 	textOv: "pb_text_overrides_v1",
 	suitOv: "pb_suit_overrides_v1",
-	scheme: "pb_scheme_overrides_v1"
+	scheme: "pb_scheme_overrides_v1",
+	accounts: "pb_accounts_v1"
 };
 
 /* ---------------- 全局状态 ---------------- */
-let state = {};              // { 套装名: (false|'purchase'|'backfill')[] }
-let favorites = new Set();   // 收藏的套装名
-let budget = { starStock: 0, todayGain: 0, lastSubmitDate: "", history: [] };
-let currentGender = "female";
-let customSuits = [];        // 自定义套装（管理面板添加）
-let textOverrides = {};      // 页面文字修改 { textKey: html }
-let suitOverrides = {};      // 内置套装修改 { 原套装名: {name?,type?,partCount?,prices?,image?,femaleImage?,maleImage?} }
-let idbImages = {};          // 自定义图片缓存 { 套装名: dataURL }
+let state = {};              // { 套装名: (false|'purchase'|'backfill')[] }（当前账号）
+let favorites = new Set();   // 收藏的套装名（当前账号）
+let budget = { starStock: 0, todayGain: 0, lastSubmitDate: "", history: [] };   //（当前账号）
+let currentGender = "female";//（当前账号）
+let accounts = [];           // 账号列表 [{ id, name }]（全局）
+let activeAccountId = "default";
+let customSuits = [];        // 自定义套装（管理面板添加，全局）
+let textOverrides = {};      // 页面文字修改 { textKey: html }（全局）
+let suitOverrides = {};      // 内置套装修改 { 原套装名: {...} }（全局）
+let idbImages = {};          // 自定义图片缓存 { 键: dataURL }，键 = 套装名（女）/ 套装名+"::male"（男）
 let schemeOverrides = {};    // 价格体系修改（本地保存）
 let backfillMode = false;
 let editMode = false;
@@ -118,11 +121,15 @@ function getSuitPartNames(suit) {
 
 function getSuitFull(suit) { return sum(getSuitPrices(suit)); }
 
-/* 图片：自定义图片(浏览器内) > 分性别指定图 > 通用指定图 > 按性别默认文件
+/* 自定义图片的 IndexedDB 键：女装 = 套装名，男装 = 套装名 + "::male" */
+function idbKey(name, gender) { return gender === "male" ? name + "::male" : name; }
+
+/* 图片：自定义图片(浏览器内,分性别) > 分性别指定图 > 通用指定图 > 按性别默认文件
  * gender 可传入覆盖当前性别（用于生成回退图地址） */
 function getSuitImage(suit, gender) {
 	const g = gender || currentGender;
-	if (idbImages[suit.name]) return idbImages[suit.name];
+	const idb = idbImages[idbKey(suit.name, g)];
+	if (idb) return idb;
 	if (g === "male") {
 		if (suit.maleImage) return suit.maleImage;
 		if (suit.image) return suit.image;
@@ -144,28 +151,62 @@ function lsGet(key, fallback) {
 function lsSet(key, val) {
 	try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { console.error(e); }
 }
+function lsRaw(key) {
+	try {
+		const r = localStorage.getItem(key);
+		return r ? JSON.parse(r) : undefined;
+	} catch (e) { return undefined; }
+}
+
+/* ---------------- 多账号 ---------------- */
+/* 账号数据的存储键：<基础键>_<账号id> */
+function accKey(base) { return base + "_" + activeAccountId; }
+
+/* 读账号数据；仅「默认账号」找不到数据时才回退旧版单账号键（无缝迁移旧数据），
+ * 新账号一律从空数据开始，互不影响 */
+function lsGetAccount(base, fallback) {
+	let v = lsRaw(accKey(base));
+	if (v === undefined && activeAccountId === "default") v = lsRaw(base);
+	return v === undefined ? fallback : v;
+}
+
+function loadAccounts() {
+	const a = lsRaw(LS.accounts);
+	if (a && Array.isArray(a.accounts) && a.accounts.length > 0) {
+		accounts = a.accounts;
+		activeAccountId = (a.activeId && a.accounts.some(function (x) { return x.id === a.activeId; }))
+			? a.activeId : a.accounts[0].id;
+	} else {
+		accounts = [{ id: "default", name: t("account.default") }];
+		activeAccountId = "default";
+		saveAccounts();
+	}
+	return accounts;
+}
+function saveAccounts() { lsSet(LS.accounts, { activeId: activeAccountId, accounts: accounts }); }
+function currentAccount() { return accounts.find(function (a) { return a.id === activeAccountId; }) || accounts[0]; }
 
 function loadState() {
-	const s = lsGet(LS.state, {});
+	const s = lsGetAccount(LS.state, {});
 	return (typeof s === "object" && s !== null) ? s : {};
 }
-function saveState() { lsSet(LS.state, state); }
+function saveState() { lsSet(accKey(LS.state), state); }
 
 function loadFavorites() {
-	const f = lsGet(LS.fav, []);
+	const f = lsGetAccount(LS.fav, []);
 	return new Set(Array.isArray(f) ? f : []);
 }
-function saveFavorites() { lsSet(LS.fav, Array.from(favorites)); }
+function saveFavorites() { lsSet(accKey(LS.fav), Array.from(favorites)); }
 
 function loadBudget() {
-	const b = lsGet(LS.budget, null);
+	const b = lsGetAccount(LS.budget, null);
 	if (b && typeof b === "object") return Object.assign({ starStock: 0, todayGain: 0, lastSubmitDate: "", history: [] }, b);
 	return { starStock: 0, todayGain: 0, lastSubmitDate: "", history: [] };
 }
-function saveBudget() { lsSet(LS.budget, budget); }
+function saveBudget() { lsSet(accKey(LS.budget), budget); }
 
-function loadGender() { return lsGet(LS.gender, "female") === "male" ? "male" : "female"; }
-function saveGender() { lsSet(LS.gender, currentGender); }
+function loadGender() { return lsGetAccount(LS.gender, "female") === "male" ? "male" : "female"; }
+function saveGender() { lsSet(accKey(LS.gender), currentGender); }
 
 function loadCustomSuits() {
 	const c = lsGet(LS.custom, []);
@@ -709,6 +750,80 @@ function syncGenderUI() {
 	});
 }
 
+/* ---------------- 多账号 ---------------- */
+function renderAccountUI() {
+	const sel = $("accountSelect");
+	if (!sel) return;
+	sel.innerHTML = "";
+	accounts.forEach(function (a) {
+		const opt = document.createElement("option");
+		opt.value = a.id;
+		opt.textContent = a.name;
+		if (a.id === activeAccountId) opt.selected = true;
+		sel.appendChild(opt);
+	});
+	const delBtn = $("btnAccDelete");
+	if (delBtn) delBtn.disabled = accounts.length <= 1;
+}
+
+function switchAccount(id) {
+	if (id === activeAccountId || !accounts.some(function (a) { return a.id === id; })) return;
+	activeAccountId = id;
+	saveAccounts();
+	state = loadState();
+	favorites = loadFavorites();
+	budget = loadBudget();
+	currentGender = loadGender();
+	backfillMode = !isBudgetInitialized();
+	syncGenderUI();
+	renderAccountUI();
+	render();
+}
+
+function addAccount() {
+	const name = prompt(t("account.newName"), t("account.default") + (accounts.length + 1));
+	if (name === null) return;
+	const n = name.trim();
+	if (!n) { alert(t("account.needName")); return; }
+	const id = "acc_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+	accounts.push({ id: id, name: n });
+	saveAccounts();
+	switchAccount(id);
+}
+
+function renameAccount() {
+	const a = currentAccount();
+	const name = prompt(t("account.renameTo"), a.name);
+	if (name === null) return;
+	const n = name.trim();
+	if (!n) { alert(t("account.needName")); return; }
+	a.name = n;
+	saveAccounts();
+	renderAccountUI();
+}
+
+function deleteAccount() {
+	if (accounts.length <= 1) { alert(t("account.onlyOne")); return; }
+	const a = currentAccount();
+	if (!confirm(t("account.confirmDelete", { name: a.name }))) return;
+	/* 删除该账号的数据（accKey 此时仍指向该账号） */
+	[LS.state, LS.fav, LS.budget, LS.gender].forEach(function (k) {
+		try { localStorage.removeItem(accKey(k)); } catch (e) {}
+	});
+	accounts = accounts.filter(function (x) { return x.id !== a.id; });
+	saveAccounts();
+	activeAccountId = accounts[0].id;
+	state = loadState();
+	favorites = loadFavorites();
+	budget = loadBudget();
+	currentGender = loadGender();
+	backfillMode = !isBudgetInitialized();
+	syncGenderUI();
+	renderAccountUI();
+	render();
+	alert(t("account.deleted", { name: a.name }));
+}
+
 /* ---------------- 编辑模式（开关由 admin.js 调用） ---------------- */
 function updateEditModeUI() {
 	const btn = $("btnEditMode");
@@ -794,19 +909,36 @@ function downloadFile(filename, text, mime) {
 }
 
 function exportData() {
+	/* 导出全部账号数据（每个账号独立的 库存/配件/收藏/性别） */
+	const accs = accounts.map(function (a) {
+		const prev = activeAccountId;
+		activeAccountId = a.id;
+		let d;
+		try {
+			d = {
+				state: loadState(),
+				favorites: Array.from(loadFavorites()),
+				budget: loadBudget(),
+				gender: loadGender()
+			};
+		} finally { activeAccountId = prev; }
+		return Object.assign({ id: a.id, name: a.name }, d);
+	});
 	const data = {
 		version: DATA_VERSION,
 		exportTime: new Date().toISOString(),
-		gender: currentGender,
-		state: state,
-		favorites: Array.from(favorites),
-		budget: budget,
+		activeId: activeAccountId,
+		accounts: accs,
 		customSuits: customSuits,
 		textOverrides: textOverrides,
 		suitOverrides: suitOverrides,
 		customImages: {}
 	};
-	customSuits.forEach(function (s) { if (idbImages[s.name]) data.customImages[s.name] = idbImages[s.name]; });
+	customSuits.forEach(function (s) {
+		["", "::male"].forEach(function (suf) {
+			if (idbImages[s.name + suf]) data.customImages[s.name + suf] = idbImages[s.name + suf];
+		});
+	});
 	downloadFile("洛克王国时装许愿星数据.json", JSON.stringify(data, null, 2), "application/json");
 }
 
@@ -821,13 +953,45 @@ function importData() {
 		reader.onload = function (e) {
 			try {
 				const data = JSON.parse(e.target.result);
-				if (data.gender === "male" || data.gender === "female") currentGender = data.gender;
-				if (data.state && typeof data.state === "object") state = data.state;
-				if (Array.isArray(data.favorites)) favorites = new Set(data.favorites);
-				if (data.budget && typeof data.budget === "object") {
-					budget = Object.assign({ starStock: 0, todayGain: 0, lastSubmitDate: "", history: [] }, data.budget);
-					if (!Array.isArray(budget.history)) budget.history = [];
+
+				if (Array.isArray(data.accounts) && data.accounts.length > 0) {
+					/* 新版导出：恢复全部账号 */
+					accounts = data.accounts.map(function (a) {
+						return {
+							id: String(a.id || "acc_" + Math.random().toString(36).slice(2, 8)),
+							name: String(a.name || "账号"),
+							state: (a.state && typeof a.state === "object") ? a.state : {},
+							favorites: Array.isArray(a.favorites) ? a.favorites : [],
+							budget: Object.assign({ starStock: 0, todayGain: 0, lastSubmitDate: "", history: [] }, a.budget || {}),
+							gender: a.gender === "male" ? "male" : "female"
+						};
+					});
+					const wantActive = data.activeId || accounts[0].id;
+					activeAccountId = accounts.some(function (x) { return x.id === wantActive; }) ? wantActive : accounts[0].id;
+					/* 写回 localStorage */
+					accounts.forEach(function (a) {
+						const prev = activeAccountId;
+						activeAccountId = a.id;
+						try {
+							lsSet(accKey(LS.state), a.state);
+							lsSet(accKey(LS.fav), a.favorites);
+							lsSet(accKey(LS.budget), a.budget);
+							lsSet(accKey(LS.gender), a.gender);
+						} finally { activeAccountId = prev; }
+					});
+					saveAccounts();
+				} else {
+					/* 旧版导出（单账号）：导入到当前账号 */
+					if (data.gender === "male" || data.gender === "female") currentGender = data.gender;
+					if (data.state && typeof data.state === "object") state = data.state;
+					if (Array.isArray(data.favorites)) favorites = new Set(data.favorites);
+					if (data.budget && typeof data.budget === "object") {
+						budget = Object.assign({ starStock: 0, todayGain: 0, lastSubmitDate: "", history: [] }, data.budget);
+						if (!Array.isArray(budget.history)) budget.history = [];
+					}
+					saveState(); saveFavorites(); saveBudget(); saveGender();
 				}
+
 				if (Array.isArray(data.customSuits)) customSuits = data.customSuits;
 				if (data.textOverrides && typeof data.textOverrides === "object") textOverrides = data.textOverrides;
 				if (data.suitOverrides && typeof data.suitOverrides === "object") suitOverrides = data.suitOverrides;
@@ -838,9 +1002,17 @@ function importData() {
 				Promise.all(keys.map(function (k) { return IDB.set(k, imgs[k]); })).then(function () {
 					return loadIDBImages();
 				}).then(function () {
-					saveState(); saveFavorites(); saveGender(); saveCustomSuits();
-					saveTextOverrides(); saveSuitOverrides();
+					/* 重新加载当前账号与全局配置 */
+					accounts = loadAccounts();
+					state = loadState();
+					favorites = loadFavorites();
+					budget = loadBudget();
+					currentGender = loadGender();
+					saveCustomSuits();
+					saveTextOverrides();
+					saveSuitOverrides();
 					syncGenderUI();
+					renderAccountUI();
 					render();
 					alert(t("msg.importSuccess"));
 				}).catch(function (err) {
@@ -871,17 +1043,23 @@ function bindStaticEvents() {
 	document.querySelectorAll('input[name="gender"]').forEach(function (input) {
 		input.addEventListener("change", function () { setGender(this.value); });
 	});
+	/* 账号 */
+	$("accountSelect").addEventListener("change", function () { switchAccount(this.value); });
+	$("btnAccAdd").addEventListener("click", addAccount);
+	$("btnAccRename").addEventListener("click", renameAccount);
+	$("btnAccDelete").addEventListener("click", deleteAccount);
 }
 
 function initPage() {
+	textOverrides = loadTextOverrides();
+	suitOverrides = loadSuitOverrides();
+	schemeOverrides = loadSchemeOverrides();
+	accounts = loadAccounts();
 	state = loadState();
 	favorites = loadFavorites();
 	budget = loadBudget();
 	currentGender = loadGender();
 	customSuits = loadCustomSuits();
-	textOverrides = loadTextOverrides();
-	suitOverrides = loadSuitOverrides();
-	schemeOverrides = loadSchemeOverrides();
 	applySchemeOverrides();
 
 	/* 合并 js/data.js 里开发者写死的 EXTRA_SUITS（管理面板导出的永久内置代码） */
@@ -894,6 +1072,7 @@ function initPage() {
 	loadIDBImages().then(function () {
 		backfillMode = !isBudgetInitialized();
 		syncGenderUI();
+		renderAccountUI();
 		bindStaticEvents();
 		if (window.bindAdminEvents) window.bindAdminEvents();
 		render();
