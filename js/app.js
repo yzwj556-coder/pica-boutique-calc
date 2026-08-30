@@ -62,8 +62,17 @@ function applyTexts() {
 	document.getElementById("searchInput").placeholder = t("search.placeholder");
 }
 
-/* 图片加载失败时的占位（供 img onerror 调用） */
+/* 图片加载失败：先回退到女装图（男装图未提供时自动生效），再显示占位 */
 window.imgErr = function (el) {
+	const fb = el.getAttribute && el.getAttribute("data-fallback");
+	if (fb && fb.indexOf("data:") !== 0) {
+		let abs = fb;
+		try { abs = new URL(fb, location.href).href; } catch (e) {}
+		if (el.src !== abs && el.src !== fb) {
+			el.src = fb;
+			return;
+		}
+	}
 	const sp = document.createElement("span");
 	sp.textContent = t("card.noImage");
 	el.replaceWith(sp);
@@ -109,13 +118,19 @@ function getSuitPartNames(suit) {
 
 function getSuitFull(suit) { return sum(getSuitPrices(suit)); }
 
-/* 图片：自定义图片(浏览器内) > 套装指定 > 默认 images/<名>.png */
-function getSuitImage(suit) {
+/* 图片：自定义图片(浏览器内) > 分性别指定图 > 通用指定图 > 按性别默认文件
+ * gender 可传入覆盖当前性别（用于生成回退图地址） */
+function getSuitImage(suit, gender) {
+	const g = gender || currentGender;
 	if (idbImages[suit.name]) return idbImages[suit.name];
-	if (currentGender === "male" && suit.maleImage) return suit.maleImage;
-	if (currentGender === "female" && suit.femaleImage) return suit.femaleImage;
+	if (g === "male") {
+		if (suit.maleImage) return suit.maleImage;
+		if (suit.image) return suit.image;
+		return defaultImagePath(suit.name, "male");
+	}
+	if (suit.femaleImage) return suit.femaleImage;
 	if (suit.image) return suit.image;
-	return defaultImagePath(suit.name);
+	return defaultImagePath(suit.name, "female");
 }
 
 /* ---------------- 本地存储 ---------------- */
@@ -560,7 +575,7 @@ function createCard(item) {
 		+ '</div></div>'
 		+ '<div class="whole-row"><label><input type="checkbox" class="whole-cb" data-suit="' + esc(item.name) + '"' + wholeChecked + '> '
 		+ esc(t("card.whole")) + (allOwned ? ' <span class="whole-checked">✓ ' + esc(t("card.whole")) + '</span>' : "") + '</label></div>'
-		+ '<div class="suit-image"><img loading="lazy" src="' + esc(item.img) + '" alt="' + esc(item.name) + '" onerror="imgErr(this)"></div>'
+		+ '<div class="suit-image"><img loading="lazy" src="' + esc(item.img) + '" alt="' + esc(item.name) + '" data-fallback="' + esc(getSuitImage(item.suit, "female")) + '" onerror="imgErr(this)"></div>'
 		+ '<div class="suit-meta">' + esc(t("card.meta", { type: item.typeLabel, full: item.fullPrice })) + '</div>'
 		+ '<div class="suit-cost">' + t("card.ownedFmt", { owned: item.ownedCount, total: item.totalParts, missing: item.missingPrice }) + '</div>'
 		+ '<div class="progress-bar-bg"><div class="progress-bar" style="width:' + item.progress + '%"></div></div>'

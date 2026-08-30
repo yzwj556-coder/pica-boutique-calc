@@ -28,7 +28,7 @@ const TEXT = {
   "gender.title": "性别",
   "gender.female": "女",
   "gender.male": "男",
-  "gender.help": "导入旧数据时会继续匹配原来的套装进度、收藏和许愿星；没有性别字段时使用当前选择的性别。",
+  "gender.help": "切换性别时套装图片会对应切换：女装图在 images/<套装名>女装.png，男装图在 images/<套装名>男装.png。尚未提供男装图时自动使用女装图。导入旧数据时会继续匹配原来的套装进度、收藏和许愿星。",
 
   "backfill.banner": "📝 <strong>当前处于补录模式</strong> — 标记/取消配件不扣除也不返还许愿星，适合首次录入已购配件。<br>录入完成后，请在下方「预算规划」填写您<strong>当前实际的许愿星库存</strong>并提交，然后关闭补录模式，之后的标记将自动扣减库存。",
 
@@ -203,9 +203,10 @@ function schemeKeyOf(type, partCount) {
  *    - 中 12 套：紫装 6 件（原网站数据）
  *    - 后 29 套：新加入的图片素材，默认按 紫装·6件 处理，
  *      可在网页「编辑模式」里一键改成 金装 / 7件。
- *    每套默认图片为 images/<套装名>.png，可加可选字段覆盖：
+ *    每套默认图片按性别命名：images/<套装名>女装.png（女）/ images/<套装名>男装.png（男）。
+ *    男装图尚未提供时自动回退用女装图。可选字段覆盖：
  *      prices: [..]      单独指定各配件价格
- *      image: "路径/url"  单独指定图片（男/女同图）
+ *      image: "路径/url"  单独指定图片（男/女通用，优先级低于分性别图）
  *      femaleImage / maleImage: 分性别图片（可选）
  * ------------------------------------------------------------------------- */
 const BUILTIN_SUIT_NAMES = {
@@ -247,9 +248,11 @@ function buildBuiltinSuits() {
 
 const BUILTIN_SUITS = buildBuiltinSuits();
 
-/* 默认图片：images/<套装名>.png */
-function defaultImagePath(name) {
-  return "images/" + name + ".png";
+/* 默认图片：images/<套装名>女装.png（女）/ images/<套装名>男装.png（男）
+ * 男装图片尚未提供时，网页会自动回退使用女装图。 */
+function defaultImagePath(name, gender) {
+  const g = gender === "male" ? "男装" : "女装";
+  return "images/" + name + g + ".png";
 }
 
 /* 数据库版本号（用于备份/迁移） */
