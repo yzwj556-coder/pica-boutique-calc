@@ -49,15 +49,22 @@ function applySuitProps(name, props) {
 		saveCustomSuits();
 		return;
 	}
-	const b = BUILTIN_SUITS.find(function (x) { return x.name === name; });
-	if (b) {
-		const ov = suitOverrides[b.name] || {};
-		if (props.type) ov.type = props.type;
-		if (props.partCount) ov.partCount = props.partCount;
-		if (props.dropPrices) delete ov.prices;
-		suitOverrides[b.name] = ov;
-		saveSuitOverrides();
+	/* 内置套装：以原内置名为 key（支持已改过名的情况） */
+	let key = null;
+	const k1 = BUILTIN_SUITS.find(function (x) { return x.name === name; });
+	if (k1) key = k1.name;
+	else {
+		key = Object.keys(suitOverrides).find(function (k) {
+			return suitOverrides[k] && suitOverrides[k].name === name;
+		}) || null;
 	}
+	if (!key) return;
+	const ov = suitOverrides[key] || {};
+	if (props.type) ov.type = props.type;
+	if (props.partCount) ov.partCount = props.partCount;
+	if (props.dropPrices) delete ov.prices;
+	suitOverrides[key] = ov;
+	saveSuitOverrides();
 }
 
 /* 编辑模式：快速切换 金装⇄紫装 */
