@@ -58,28 +58,6 @@ pica-boutique-calc/
 - **补男装图**：只需把 `images/<套装名>男装.png` 放进 `images/` 文件夹并推送即可，网页会自动识别使用，无需改代码；缺男装图时自动显示女装图。
 - **加套装（网页操作）**：点「➕ 添加主题」一次上传一个主题（3/4 套，品质一致，自动入池最旧未入池主题），或「➕ 添加套装」单套上传；保存后立即生效（存在本浏览器）；如需永久保留，用「💾 导出时装基本信息」同步。
 
-## 部署到 GitHub Pages
-
-本仓库已在你的 GitHub 账号下（yzwj556-coder/pica-boutique-calc）。推送后开启 Pages 即可：
-
-```bash
-cd D:\harness\pica-boutique-calc
-git add -A
-git commit -m "新版时装许愿星计算器"
-git push origin main
-```
-
-然后：
-
-1. 打开 https://github.com/yzwj556-coder/pica-boutique-calc
-2. 进入 **Settings → Pages**
-3. **Source** 选择 **Deploy from a branch**
-4. **Branch** 选 **main**，目录选 **/ (root)**，点 **Save**
-5. 等待 1~2 分钟构建完成
-
-访问地址：https://yzwj556-coder.github.io/pica-boutique-calc/
-
-> 提示：若 GitHub 已提示 Pages 已启用（仓库较大，约 25MB 图片），等待构建即可。之后每次 `git push` 都会自动重新发布。
 
 ## 说明
 
