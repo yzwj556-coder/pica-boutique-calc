@@ -283,17 +283,49 @@ const BUILTIN_SUIT_NAMES = {
 
 function buildBuiltinSuits() {
   const list = [];
-  BUILTIN_SUIT_NAMES.gold.forEach(function (n) {
-    list.push({ name: n, type: "gold", partCount: 6 });
-  });
-  BUILTIN_SUIT_NAMES.purple6.forEach(function (n) {
-    list.push({ name: n, type: "purple", partCount: 6 });
-  });
-  BUILTIN_SUIT_NAMES.purpleNew.forEach(function (n) {
-    list.push({ name: n, type: "purple", partCount: 6 });
-  });
+  function add(n, type, partCount) {
+    const ov = SUIT_DEFAULTS[n] || {};
+    list.push({ name: n, type: ov.type || type, partCount: ov.partCount || partCount });
+  }
+  BUILTIN_SUIT_NAMES.gold.forEach(function (n) { add(n, "gold", 6); });
+  BUILTIN_SUIT_NAMES.purple6.forEach(function (n) { add(n, "purple", 6); });
+  BUILTIN_SUIT_NAMES.purpleNew.forEach(function (n) { add(n, "purple", 6); });
   return list;
 }
+
+/* 单套时装默认覆盖（与「时装基本信息.json」保持一致；type=品质，partCount=6/7件）
+ * 未列出的套装使用所在分组的默认值（金装=6件 / 紫装=6件） */
+const SUIT_DEFAULTS = {
+  /* 紫装改为 7 件（上衣21 裤子21 头饰20 背饰18 手饰6 袜子4 鞋子8） */
+  "高脚鹬印象": { partCount: 7 },
+  "魔草巫灵印象": { partCount: 7 },
+  "魔眷鸟印象": { partCount: 7 },
+  "奇丽花印象": { partCount: 7 },
+  "卡瓦重印象": { partCount: 7 },
+  "古卷执政官印象": { partCount: 7 },
+  "咕德帽帽印象": { partCount: 7 },
+  "圆号鱼印象": { partCount: 7 },
+  "小丑公爵印象": { partCount: 7 },
+  "巨鼓象印象": { partCount: 7 },
+  "混乱鱿彩印象": { partCount: 7 },
+  "烟花伯爵印象": { partCount: 7 },
+  "蹦床松鼠印象": { partCount: 7 },
+  "里拉鳐印象": { partCount: 7 },
+  "食尘短绒印象": { partCount: 7 },
+  /* 紫装改为金装（连衣74 头饰41 背饰34 手饰17 袜子9 鞋子20） */
+  "乌拉塔印象": { type: "gold" },
+  "千棘盔印象": { type: "gold" },
+  "幻影灵菇印象": { type: "gold" },
+  "怖哭菇印象": { type: "gold" },
+  "朔夜伊芙印象": { type: "gold" },
+  "水灵印象": { type: "gold" },
+  "流浪鼠印象": { type: "gold" },
+  "海豹船长印象": { type: "gold" },
+  "火神印象": { type: "gold" },
+  "裘卡印象": { type: "gold" },
+  "迷迷箱怪印象": { type: "gold" },
+  "魔力猫印象": { type: "gold" }
+};
 
 const BUILTIN_SUITS = buildBuiltinSuits();
 
@@ -320,10 +352,10 @@ const THEMES = [
 	{ seq: 11, name: "魔法嘉年华",           entryTime: null, pooled: true,  suits: ["烟花伯爵印象", "巨鼓象印象", "咕德帽帽印象", "小丑公爵印象"] },
 	{ seq: 12, name: "梦境流浪者",           entryTime: null, pooled: true,  suits: ["幻影灵菇印象", "怖哭菇印象", "流浪鼠印象"] },
 	{ seq: 13, name: "乐团协奏曲",           entryTime: null, pooled: true,  suits: ["圆号鱼印象", "里拉鳐印象", "卡瓦重印象", "蹦床松鼠印象"] },
-	{ seq: 14, name: "秘密潜入计划",         entryTime: null, pooled: false, suits: ["朔夜伊芙印象", "乌拉塔印象", "裘卡印象"] },
-	{ seq: 15, name: "年轮诗社",             entryTime: null, pooled: false, suits: ["古卷执政官印象", "古卷匣魔像印象", "画间法师手印象", "画间沉铁兽印象"] },
-	{ seq: 16, name: "初心的继承者",         entryTime: null, pooled: false, suits: ["水灵印象", "魔力猫印象", "火神印象"] },
-	{ seq: 17, name: "怎么可以用魔法扫帚当画笔", entryTime: null, pooled: false, suits: ["食尘短绒印象", "捕尘长绒印象", "混乱鱿彩印象", "秩序鱿墨印象"] }
+	{ seq: 14, name: "秘密潜入计划",         entryTime: "2026-09-10", pooled: false, suits: ["朔夜伊芙印象", "乌拉塔印象", "裘卡印象"] },
+	{ seq: 15, name: "年轮诗社",             entryTime: "2026-09-25", pooled: false, suits: ["古卷执政官印象", "古卷匣魔像印象", "画间法师手印象", "画间沉铁兽印象"] },
+	{ seq: 16, name: "初心的继承者",         entryTime: "2026-10-10", pooled: false, suits: ["水灵印象", "魔力猫印象", "火神印象"] },
+	{ seq: 17, name: "怎么可以用魔法扫帚当画笔", entryTime: "2026-10-23", pooled: false, suits: ["食尘短绒印象", "捕尘长绒印象", "混乱鱿彩印象", "秩序鱿墨印象"] }
 ];
 
 /* 默认图片：images/<套装名>女装.png（女）/ images/<套装名>男装.png（男）
@@ -334,4 +366,4 @@ function defaultImagePath(name, gender) {
 }
 
 /* 数据库版本号（用于备份/迁移） */
-const DATA_VERSION = 5;
+const DATA_VERSION = 6;
