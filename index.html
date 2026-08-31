@@ -18,6 +18,7 @@
 			<button class="btn-export" id="btnExport">导出数据</button>
 			<button class="btn-import" id="btnImport">导入数据</button>
 			<button class="btn-add" id="btnAddSuit">➕ 添加套装</button>
+			<button class="btn-add" id="btnAddTheme">➕ 添加主题</button>
 			<button id="btnBackfill" class="btn-backfill-on">📝 补录模式：开</button>
 			<button id="btnEditMode" class="btn-editmode-off">✏️ 编辑模式：关</button>
 		</div>
@@ -47,6 +48,16 @@
 		</div>
 
 		<div id="backfillBanner" class="backfill-banner visible" data-text="backfill.banner"></div>
+
+		<div class="tutorial-panel">
+			<details>
+				<summary data-text="tutorial.summary">📖 使用说明：查看未毕业套装已有的配件（点击展开/折叠）</summary>
+				<div class="tutorial-body">
+					<div data-text="tutorial.desc">点击任意套装卡片上的配件标签即可标记已拥有，标签被划线表示已拥有。查看某套未毕业时装已拥有哪些配件：看该套装卡片上哪些配件标签被划线。</div>
+					<img src="images/教程-查看未毕业套装已有的配件.png" alt="查看未毕业套装已有的配件教程" loading="lazy">
+				</div>
+			</details>
+		</div>
 
 		<div class="budget-panel">
 			<div class="budget-title" data-text="budget.title">⭐ 许愿星预算规划</div>
@@ -78,7 +89,10 @@
 
 		<div class="summary">
 			<div class="summary-item hl"><div class="num" id="totalStars">0</div><div class="label" data-text="summary.totalStars">许愿星总数</div></div>
-			<div class="summary-item hl"><div class="num" id="needStars">0</div><div class="label" data-text="summary.needStars">毕业所需许愿星（当前缺口）</div></div>
+			<div class="summary-item hl"><div class="num" id="needStars">0</div><div class="label" data-text="summary.needStars">毕业所需许愿星</div></div>
+			<div class="summary-item"><div class="num" id="gapStars">0</div><div class="label" data-text="summary.gapStars">当前缺口许愿星（已入池）</div></div>
+			<div class="summary-item"><div class="num" id="unpooledStars">0</div><div class="label" data-text="summary.unpooledStars">未入池许愿星总数</div></div>
+			<div class="summary-item"><div class="num" id="unpooledSuits">0</div><div class="label" data-text="summary.unpooledSuits">未入池时装数</div></div>
 			<div class="summary-item"><div class="num" id="totalSuits">0</div><div class="label" data-text="summary.totalSuits">总时装数</div></div>
 			<div class="summary-item"><div class="num" id="totalParts">0</div><div class="label" data-text="summary.totalParts">总配件数</div></div>
 			<div class="summary-item"><div class="num" id="ownedParts">0</div><div class="label" data-text="summary.ownedParts">已拥有配件</div></div>
@@ -95,15 +109,8 @@
 				<option value="purple" data-text="filter.purple">只显示紫装</option>
 				<option value="fav" data-text="filter.fav">只显示收藏</option>
 			</select>
-			<label data-text="sort.label">排序：</label>
-			<select id="sortType">
-				<option value="default" data-text="sort.default">默认顺序</option>
-				<option value="missingAsc" data-text="sort.missingAsc">优先展示缺口小</option>
-				<option value="missingDesc" data-text="sort.missingDesc">优先展示缺口大</option>
-				<option value="progressAsc" data-text="sort.progressAsc">优先展示进度低</option>
-				<option value="progressDesc" data-text="sort.progressDesc">优先展示进度高</option>
-			</select>
 			<input type="text" id="searchInput" placeholder="输入套装名称">
+			<span class="filter-hint" data-text="filter.themeHint">套装按主题分组展示，默认按主题顺序排列</span>
 		</div>
 
 		<div class="charts">
@@ -128,8 +135,8 @@
 		</div>
 
 		<div>
-			<div class="section-title" data-text="allSection.title">全部套装</div>
-			<div id="allContainer" class="suits"></div>
+			<div class="section-title" data-text="allSection.title">全部套装（按主题分组）</div>
+			<div id="allContainer"></div>
 		</div>
 
 	</div>
@@ -141,8 +148,10 @@
 		<div class="tool-title">✏️ 编辑模式</div>
 		<div style="font-size:12px;color:#666" data-text="edit.modeHint">点击页面任意文字可直接修改；套装卡片上有 ⚙ 编辑按钮；点击卡片上的 金装/紫装 徽标可切换类型。</div>
 		<button id="btnAddSuit2">➕ 添加套装</button>
+		<button id="btnAddTheme2">➕ 添加主题</button>
 		<button id="btnTextEditor">📝 编辑页面文字</button>
 		<button id="btnPricesEditor">💱 编辑价格体系</button>
+		<button id="btnExportBasic">💾 导出时装基本信息（同步用）</button>
 		<button id="btnResetText">↩️ 重置文字修改</button>
 		<button id="btnResetSuits">↩️ 重置套装修改</button>
 		<button id="btnResetCustom" class="tool-danger">🗑️ 移除全部自定义套装</button>

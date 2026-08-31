@@ -14,7 +14,9 @@ const LS = {
 	textOv: "pb_text_overrides_v1",
 	suitOv: "pb_suit_overrides_v1",
 	scheme: "pb_scheme_overrides_v1",
-	accounts: "pb_accounts_v1"
+	accounts: "pb_accounts_v1",
+	themeOv: "pb_theme_overrides_v1",
+	themeCustom: "pb_custom_themes_v1"
 };
 
 /* ---------------- 全局状态 ---------------- */
@@ -29,6 +31,8 @@ let textOverrides = {};      // 页面文字修改 { textKey: html }（全局）
 let suitOverrides = {};      // 内置套装修改 { 原套装名: {...} }（全局）
 let idbImages = {};          // 自定义图片缓存 { 键: dataURL }，键 = 套装名（女）/ 套装名+"::male"（男）
 let schemeOverrides = {};    // 价格体系修改（本地保存）
+let themeOverrides = {};     // 主题修改 { seq: {pooled?, entryTime?, name?, suits?} }（本地保存）
+let customThemes = [];       // 自定义主题（管理面板添加，全局）
 let backfillMode = false;
 let editMode = false;
 
@@ -231,6 +235,116 @@ function applySchemeOverrides() {
 	});
 }
 
+/* ---------------- 主题（入池） ---------------- */
+function loadThemeOverrides() { const o = lsGet(LS.themeOv, {}); return (typeof o === "object" && o) ? o : {}; }
+function saveThemeOverrides() { lsSet(LS.themeOv, themeOverrides); }
+function loadCustomThemes() { const c = lsGet(LS.themeCustom, []); return Array.isArray(c) ? c : []; }
+function saveCustomThemes() { lsSet(LS.themeCustom, customThemes); }
+
+/* 运行时主题列表 = 数据内置主题（套用本地覆盖）+ 自定义主题，按序号排列 */
+function getThemes() {
+	const list = THEMES.map(function (t) { return Object.assign({}, t); });
+	Object.keys(themeOverrides).forEach(function (seq) {
+		const ov = themeOverrides[seq];
+		const th = list.find(function (x) { return String(x.seq) === String(seq); });
+		if (th) {
+			if (ov.pooled !== undefined) th.pooled = ov.pooled;
+			if (ov.entryTime !== undefined) th.entryTime = ov.entryTime;
+			if (ov.name) th.name = ov.name;
+			if (Array.isArray(ov.suits)) th.suits = ov.suits.slice();
+		}
+	});
+	customThemes.forEach(function (t) { list.push(Object.assign({ custom: true }, t)); });
+	return list.sort(function (a, b) { return a.seq - b.seq; });
+}
+
+/* 主题是否已入池：手动指定优先 > 到入池时间自动入池 > 数据默认 */
+function isThemePooled(th) {
+	const ov = themeOverrides[String(th.seq)];
+	if (ov && ov.pooled !== undefined) return !!ov.pooled;
+	if (th.entryTime) return th.entryTime <= getTodayStr();
+	return !!th.pooled;
+}
+
+function isSuitPooled(name) {
+	const st = suitTheme(name);
+	return st ? isThemePooled(st.theme) : true;   // 未归属主题的时装视为已入池
+}
+
+/* 套装所属主题；返回 { theme, idx } 或 null */
+function suitTheme(name) {
+	const themes = getThemes();
+	for (let i = 0; i < themes.length; i++) {
+		const idx = themes[i].suits.indexOf(name);
+		if (idx >= 0) return { theme: themes[i], idx: idx };
+	}
+	return null;
+}
+
+/* 未入池的主题（按序号升序） */
+function unpooledThemes() {
+	return getThemes().filter(function (t) { return !isThemePooled(t); });
+}
+
+/* 序号最小的未入池主题（非编辑模式只显示它的入池时间） */
+function nextUnpooledTheme() {
+	const up = unpooledThemes();
+	return up.length ? up[0] : null;
+}
+
+function themeQuality(th) {
+	for (let i = 0; i < th.suits.length; i++) {
+		const s = getSuit(th.suits[i]);
+		if (s) return s.type;
+	}
+	return null;
+}
+
+/* 把套装加入某主题（内置主题通过覆盖记录，自定义主题直接改） */
+function addSuitToTheme(name, seq) {
+	const th = getThemes().find(function (t) { return String(t.seq) === String(seq); });
+	if (!th || th.suits.indexOf(name) >= 0) return;
+	if (th.custom) {
+		const ct = customThemes.find(function (t) { return String(t.seq) === String(seq); });
+		if (ct) { ct.suits = ct.suits.concat([name]); saveCustomThemes(); }
+	} else {
+		themeOverrides[String(seq)] = Object.assign({}, themeOverrides[String(seq)], { suits: th.suits.concat([name]) });
+		saveThemeOverrides();
+	}
+}
+
+function removeSuitFromTheme(name, seq) {
+	const th = getThemes().find(function (t) { return String(t.seq) === String(seq); });
+	if (!th) return;
+	const list = th.suits.filter(function (n) { return n !== name; });
+	if (th.custom) {
+		const ct = customThemes.find(function (t) { return String(t.seq) === String(seq); });
+		if (ct) { ct.suits = list; saveCustomThemes(); }
+	} else {
+		themeOverrides[String(seq)] = Object.assign({}, themeOverrides[String(seq)], { suits: list });
+		saveThemeOverrides();
+	}
+}
+
+/* 下一个主题序号（自动递增，网页上不显示序号） */
+function nextThemeSeq() {
+	let mx = 0;
+	getThemes().forEach(function (t) { if (t.seq > mx) mx = t.seq; });
+	return mx + 1;
+}
+
+/* 手动设置主题已入池 / 入池时间（编辑模式） */
+function setThemePooled(seq, val) {
+	themeOverrides[String(seq)] = Object.assign({}, themeOverrides[String(seq)], { pooled: !!val });
+	saveThemeOverrides();
+	render();
+}
+function setThemeEntryTime(seq, val) {
+	themeOverrides[String(seq)] = Object.assign({}, themeOverrides[String(seq)], { entryTime: val || null });
+	saveThemeOverrides();
+	render();
+}
+
 /* ---------------- IndexedDB：自定义图片 ---------------- */
 const IDB = (function () {
 	let dbPromise = null;
@@ -348,15 +462,14 @@ function togglePart(name, idx) {
 	render();
 }
 
-/* 勾选/取消整套时装（= 勾选/取消全部配件） */
-function toggleWholeSuit(name, checked) {
+/* 勾选/取消单个套装（= 勾选/取消该套装全部配件），不触发渲染（供批量调用） */
+function applySuitToggle(name, checked) {
 	const suit = getSuit(name);
 	if (!suit) return;
 	const prices = getSuitPrices(suit);
 	const arr = ensureState(name, prices.length);
 
 	if (checked) {
-		// 未拥有的配件全部标记为已拥有
 		if (!backfillMode) {
 			let need = 0;
 			prices.forEach(function (p, i) { if (!arr[i]) need += p; });
@@ -376,7 +489,6 @@ function toggleWholeSuit(name, checked) {
 			prices.forEach(function (p, i) { if (!arr[i]) arr[i] = "backfill"; });
 		}
 	} else {
-		// 取消整套：退回「正常模式」购买的部分
 		let refund = 0;
 		prices.forEach(function (p, i) {
 			if (arr[i] === "purchase") { refund += p; arr[i] = false; }
@@ -391,6 +503,17 @@ function toggleWholeSuit(name, checked) {
 		}
 		saveBudget();
 	}
+}
+
+function toggleWholeSuit(name, checked) {
+	applySuitToggle(name, checked);
+	saveState();
+	render();
+}
+
+/* 以主题为整体：勾选/取消该主题下全部时装 */
+function toggleWholeTheme(th, checked) {
+	th.suits.forEach(function (name) { applySuitToggle(name, checked); });
 	saveState();
 	render();
 }
@@ -399,12 +522,14 @@ function toggleWholeSuit(name, checked) {
 function computeStats() {
 	const suits = getAllSuits();
 	const st = {
-		totalStars: 0, gap: 0, ownedValue: 0,
+		totalStars: 0, totalGap: 0, pooledGap: 0, unpooledGap: 0,
+		unpooledSuits: 0, ownedValue: 0,
 		totalParts: 0, ownedParts: 0, ownedSuits: 0, totalSuits: suits.length, missingParts: 0
 	};
 	suits.forEach(function (s) {
 		const prices = getSuitPrices(s);
 		const arr = state[s.name] || [];
+		const pooled = isSuitPooled(s.name);
 		let full = 0, ov = 0, oc = 0;
 		prices.forEach(function (p, i) {
 			full += p;
@@ -414,9 +539,12 @@ function computeStats() {
 		st.totalStars += full;
 		st.ownedValue += ov;
 		st.ownedParts += oc;
-		st.gap += full - ov;
+		const miss = full - ov;
+		if (pooled) st.pooledGap += miss;
+		else { st.unpooledGap += miss; st.unpooledSuits++; }
 		if (oc === prices.length) st.ownedSuits++;
 	});
+	st.totalGap = st.pooledGap + st.unpooledGap;   // 毕业所需许愿星 = 全部缺口
 	st.missingParts = st.totalParts - st.ownedParts;
 	return st;
 }
@@ -525,7 +653,8 @@ function renderBudget() {
 	const cv = $("starCounterVal");
 	if (cv) cv.textContent = budget.starStock;
 
-	const gap = computeStats().gap;
+	/* 还需许愿星按「毕业所需许愿星」（含未入池）计算 */
+	const gap = computeStats().totalGap;
 	const need = Math.max(0, gap - budget.starStock);
 	$("budgetNeed").textContent = need;
 
@@ -656,17 +785,77 @@ function createCard(item) {
 	return card;
 }
 
-/* ---------------- 渲染 ---------------- */
+/* 主题行：标签（主题名 + 未入池标记 + 入池时间 + 整体勾选 + 编辑控制）+ 该主题下的套装卡片 */
+function createThemeRow(th, infos, showEntryTime) {
+	const row = document.createElement("div");
+	row.className = "theme-row";
+	const pooled = isThemePooled(th);
+
+	const label = document.createElement("div");
+	label.className = "theme-label";
+	label.appendChild(document.createTextNode(th.name));
+
+	if (!pooled) {
+		const b = document.createElement("span");
+		b.className = "theme-unpooled-badge";
+		b.textContent = t("theme.unpooled");
+		label.appendChild(b);
+		if (showEntryTime) {
+			const e = document.createElement("span");
+			e.className = "theme-entry-hint";
+			e.textContent = th.entryTime ? t("theme.entryTimeLabel", { date: th.entryTime }) : t("theme.entryTimeUnknown");
+			label.appendChild(e);
+		}
+	}
+
+	/* 以主题为整体勾选 */
+	const allOwned = infos.length > 0 && infos.every(function (i) { return i.ownedCount === i.totalParts && i.totalParts > 0; });
+	const someOwned = infos.some(function (i) { return i.ownedCount > 0; }) && !allOwned;
+	const whole = document.createElement("label");
+	whole.className = "theme-whole";
+	const cb = document.createElement("input");
+	cb.type = "checkbox";
+	cb.checked = allOwned;
+	if (someOwned) cb.indeterminate = true;
+	cb.addEventListener("change", function () { toggleWholeTheme(th, this.checked); });
+	whole.appendChild(cb);
+	whole.appendChild(document.createTextNode(t("theme.whole")));
+	label.appendChild(whole);
+
+	/* 编辑模式：已入池 + 入池时间 */
+	if (editMode) {
+		const ctrl = document.createElement("span");
+		ctrl.className = "theme-edit-controls";
+		ctrl.innerHTML = '<label><input type="checkbox" class="tpool"> ' + esc(t("theme.pooled")) + '</label>'
+			+ '<label>' + esc(t("theme.entryTime")) + ' <input type="date" class="ttime"></label>';
+		const tpool = ctrl.querySelector(".tpool");
+		tpool.checked = pooled;
+		tpool.addEventListener("change", function () { setThemePooled(th.seq, tpool.checked); });
+		const ttime = ctrl.querySelector(".ttime");
+		ttime.value = th.entryTime || "";
+		ttime.addEventListener("change", function () { setThemeEntryTime(th.seq, ttime.value); });
+		label.appendChild(ctrl);
+	}
+
+	row.appendChild(label);
+	const grid = document.createElement("div");
+	grid.className = "theme-suits";
+	infos.forEach(function (i) { grid.appendChild(createCard(i)); });
+	row.appendChild(grid);
+	return row;
+}
 function render() {
 	applyTexts();
 
 	const filterType = $("filterType").value;
-	const sortType = $("sortType").value;
 	const searchText = $("searchInput").value.trim().toLowerCase();
 
 	const stats = computeStats();
 	$("totalStars").textContent = stats.totalStars;
-	$("needStars").textContent = stats.gap;
+	$("needStars").textContent = stats.totalGap;              // 毕业所需许愿星（含未入池）
+	$("gapStars").textContent = stats.pooledGap;              // 当前缺口许愿星（已入池）
+	$("unpooledStars").textContent = stats.unpooledGap;       // 未入池许愿星总数
+	$("unpooledSuits").textContent = stats.unpooledSuits;     // 未入池时装数
 	$("totalSuits").textContent = stats.totalSuits;
 	$("totalParts").textContent = stats.totalParts;
 	$("ownedParts").textContent = stats.ownedParts;
@@ -680,10 +869,13 @@ function render() {
 	else if (filterType === "purple") list = list.filter(function (i) { return i.isPurple; });
 	else if (filterType === "fav") list = list.filter(function (i) { return i.isFav; });
 
-	if (sortType === "missingAsc") list.sort(function (a, b) { return a.missingPrice - b.missingPrice; });
-	else if (sortType === "missingDesc") list.sort(function (a, b) { return b.missingPrice - a.missingPrice; });
-	else if (sortType === "progressAsc") list.sort(function (a, b) { return a.progress - b.progress; });
-	else if (sortType === "progressDesc") list.sort(function (a, b) { return b.progress - a.progress; });
+	/* 默认排序：按主题序号（未归属主题的排最后） */
+	list.sort(function (a, b) {
+		const ta = suitTheme(a.name), tb = suitTheme(b.name);
+		const sa = ta ? ta.theme.seq : 9999, sb = tb ? tb.theme.seq : 9999;
+		if (sa !== sb) return sa - sb;
+		return (ta ? ta.idx : 0) - (tb ? tb.idx : 0);
+	});
 
 	const favList = list.filter(function (i) { return i.isFav; });
 	const favSec = $("favSection");
@@ -696,9 +888,18 @@ function render() {
 		favSec.style.display = "none";
 	}
 
+	/* 全部套装：按主题分行 */
 	const allCont = $("allContainer");
 	allCont.innerHTML = "";
-	list.forEach(function (i) { allCont.appendChild(createCard(i)); });
+	const firstUp = nextUnpooledTheme();
+	getThemes().forEach(function (th) {
+		const thSuits = list.filter(function (i) {
+			const st = suitTheme(i.name);
+			return st && st.theme.seq === th.seq;
+		});
+		if (thSuits.length === 0) return;
+		allCont.appendChild(createThemeRow(th, thSuits, firstUp && firstUp.seq === th.seq));
+	});
 
 	/* 图表 */
 	const pct = stats.totalParts ? Math.round(stats.ownedParts / stats.totalParts * 100) : 0;
@@ -908,6 +1109,33 @@ function downloadFile(filename, text, mime) {
 	setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
+/* 构建「时装基本信息」：仅含时装与主题的基础信息（不含拥有情况、许愿星数据），
+ * 供同步到 GitHub 网页（js/data.js）使用 */
+function buildBasicData() {
+	const themes = getThemes().map(function (t) {
+		return { seq: t.seq, name: t.name, entryTime: t.entryTime || null, pooled: isThemePooled(t), suits: t.suits.slice() };
+	});
+	const suits = getAllSuits().map(function (s) {
+		const o = { name: s.name, type: s.type, partCount: s.partCount, prices: getSuitPrices(s) };
+		if (s.femaleImage) o.femaleImage = s.femaleImage;
+		if (s.maleImage) o.maleImage = s.maleImage;
+		if (s.image) o.image = s.image;
+		return o;
+	});
+	return {
+		kind: "pica-boutique-suit-basic",
+		version: 1,
+		exportTime: new Date().toISOString(),
+		themes: themes,
+		suits: suits
+	};
+}
+
+function exportBasicData() {
+	downloadFile("时装基本信息.json", JSON.stringify(buildBasicData(), null, 2), "application/json");
+	alert(t("msg.exportBasic"));
+}
+
 function exportData() {
 	/* 导出全部账号数据（每个账号独立的 库存/配件/收藏/性别） */
 	const accs = accounts.map(function (a) {
@@ -930,6 +1158,8 @@ function exportData() {
 		activeId: activeAccountId,
 		accounts: accs,
 		customSuits: customSuits,
+		customThemes: customThemes,
+		themeOverrides: themeOverrides,
 		textOverrides: textOverrides,
 		suitOverrides: suitOverrides,
 		customImages: {}
@@ -993,6 +1223,8 @@ function importData() {
 				}
 
 				if (Array.isArray(data.customSuits)) customSuits = data.customSuits;
+				if (Array.isArray(data.customThemes)) customThemes = data.customThemes;
+				if (data.themeOverrides && typeof data.themeOverrides === "object") themeOverrides = data.themeOverrides;
 				if (data.textOverrides && typeof data.textOverrides === "object") textOverrides = data.textOverrides;
 				if (data.suitOverrides && typeof data.suitOverrides === "object") suitOverrides = data.suitOverrides;
 
@@ -1009,6 +1241,8 @@ function importData() {
 					budget = loadBudget();
 					currentGender = loadGender();
 					saveCustomSuits();
+					saveCustomThemes();
+					saveThemeOverrides();
 					saveTextOverrides();
 					saveSuitOverrides();
 					syncGenderUI();
@@ -1038,7 +1272,6 @@ function bindStaticEvents() {
 	$("btnClearStock").addEventListener("click", clearStarStock);
 	$("btnClearHistory").addEventListener("click", clearBudgetHistory);
 	$("filterType").addEventListener("change", render);
-	$("sortType").addEventListener("change", render);
 	$("searchInput").addEventListener("input", render);
 	document.querySelectorAll('input[name="gender"]').forEach(function (input) {
 		input.addEventListener("change", function () { setGender(this.value); });
@@ -1054,6 +1287,8 @@ function initPage() {
 	textOverrides = loadTextOverrides();
 	suitOverrides = loadSuitOverrides();
 	schemeOverrides = loadSchemeOverrides();
+	themeOverrides = loadThemeOverrides();
+	customThemes = loadCustomThemes();
 	accounts = loadAccounts();
 	state = loadState();
 	favorites = loadFavorites();

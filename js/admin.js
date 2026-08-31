@@ -23,6 +23,7 @@ function closeModal() {
 	pendingUploadM = null;
 	pendingUploadNameF = "";
 	pendingUploadNameM = "";
+	themeUploads = {};
 }
 
 /* ---------------- 套装名迁移（改名后同步 state/收藏/图片缓存，男女装图片一起迁移） ---------------- */
@@ -134,9 +135,18 @@ function suitEditorHtml(suit) {
 	const pathF = effectiveImagePath(suit, "female");
 	const pathM = effectiveImagePath(suit, "male");
 
+	/* 所属主题下拉 */
+	const curTheme = suit ? suitTheme(suit.name) : null;
+	const themesOpts = getThemes().map(function (th) {
+		return '<option value="' + th.seq + '"' + (curTheme && curTheme.theme.seq === th.seq ? " selected" : "") + '>' + esc(th.name) + '</option>';
+	}).join("");
+
 	return '<h3>' + esc(isNew ? t("admin.title") : t("admin.title") + " · " + name) + '</h3>'
 		+ '<div class="field"><label>' + esc(t("admin.name")) + '</label>'
 		+ '<input type="text" id="seName" value="' + esc(name) + '"></div>'
+
+		+ '<div class="field"><label>' + esc(t("admin.theme")) + '</label>'
+		+ '<select id="seTheme">' + (themesOpts || '<option value="">' + esc(t("admin.themeNone")) + '</option>') + '</select></div>'
 
 		+ '<div class="field"><label>' + esc(t("admin.type")) + '</label><div class="radio-row">'
 		+ '<label><input type="radio" name="seType" value="gold" ' + (type === "gold" ? "checked" : "") + '> ' + esc(t("admin.typeGold", { n: sum(PRICE_SCHEMES.gold6.prices) })) + '</label>'
@@ -316,6 +326,9 @@ function saveSuitEditor() {
 		saveImages(entry);
 		customSuits.push(entry);
 		saveCustomSuits();
+		/* 归属主题 */
+		const themeSel = $("seTheme");
+		if (themeSel && themeSel.value) addSuitToTheme(name, parseInt(themeSel.value, 10));
 		closeModal();
 		render();
 		alert(t("msg.suitSaved", { name: name }));
@@ -324,7 +337,15 @@ function saveSuitEditor() {
 
 	/* ---- 编辑已有 ---- */
 	const isCustom = customSuits.some(function (s) { return s.name === editingName; });
+	/* 主题变更：先从旧主题移除，再加入新主题（改名时用新名） */
+	const oldTh = suitTheme(editingName);
+	const themeSel2 = $("seTheme");
+	const newThSeq = themeSel2 && themeSel2.value ? parseInt(themeSel2.value, 10) : null;
+	if (oldTh && (!newThSeq || oldTh.theme.seq !== newThSeq)) {
+		removeSuitFromTheme(editingName, oldTh.theme.seq);
+	}
 	if (editingName !== name) migrateSuitName(editingName, name);
+	if (newThSeq) addSuitToTheme(name, newThSeq);
 
 	if (isCustom) {
 		const entry = customSuits.find(function (s) { return s.name === name; });
@@ -362,6 +383,8 @@ function deleteCustomSuit() {
 	const name = currentEditName;
 	if (!name) return;
 	if (!confirm(t("msg.confirmDeleteSuit", { name: name }))) return;
+	const th = suitTheme(name);
+	if (th) removeSuitFromTheme(name, th.theme.seq);
 	customSuits = customSuits.filter(function (s) { return s.name !== name; });
 	saveCustomSuits();
 	delete state[name];
@@ -487,9 +510,11 @@ function resetSuitOverrides() {
 	alert(t("msg.overridesReset"));
 }
 function resetCustomSuits() {
-	if (!confirm("确定移除全部自定义套装？\n\n其浏览器内保存的男女装图片也会删除。")) return;
+	if (!confirm("确定移除全部自定义套装？\n\n其浏览器内保存的男女装图片、自定义主题也会删除。")) return;
 	const names = customSuits.map(function (s) { return s.name; });
 	names.forEach(function (n) {
+		const th = suitTheme(n);
+		if (th) removeSuitFromTheme(n, th.theme.seq);
 		delete state[n];
 		if (favorites.has(n)) favorites.delete(n);
 		["", "::male"].forEach(function (suf) {
@@ -498,7 +523,9 @@ function resetCustomSuits() {
 		});
 	});
 	customSuits = [];
+	customThemes = [];
 	saveCustomSuits();
+	saveCustomThemes();
 	saveState();
 	saveFavorites();
 	render();
@@ -516,6 +543,9 @@ function toggleEditMode() {
 function bindAdminEvents() {
 	$("btnAddSuit").addEventListener("click", function () { openSuitEditor(null); });
 	$("btnAddSuit2").addEventListener("click", function () { openSuitEditor(null); });
+	$("btnAddTheme").addEventListener("click", openThemeEditor);
+	$("btnAddTheme2").addEventListener("click", openThemeEditor);
+	$("btnExportBasic").addEventListener("click", exportBasicData);
 	$("btnEditMode").addEventListener("click", toggleEditMode);
 	$("btnTextEditor").addEventListener("click", openTextEditor);
 	$("btnPricesEditor").addEventListener("click", openPricesEditor);
@@ -525,4 +555,113 @@ function bindAdminEvents() {
 	$("modalMask").addEventListener("click", function (e) {
 		if (e.target === $("modalMask")) closeModal();
 	});
+}
+
+/* ---------------- 添加新主题（一个主题 = 3 或 4 套时装，品质一致） ---------------- */
+let themeUploads = {};   // { i: {F: dataURL|null, M: dataURL|null} }
+
+function openThemeEditor() {
+	themeUploads = {};
+	const typeRadio = '<label><input type="radio" name="seTType" value="gold" checked> ' + esc(t("admin.typeGold", { n: sum(PRICE_SCHEMES.gold6.prices) })) + '</label>'
+		+ '<label><input type="radio" name="seTType" value="purple"> ' + esc(t("admin.typePurple", { n: sum(PRICE_SCHEMES.purple6.prices) })) + '</label>';
+	const countRadio = '<label><input type="radio" name="seTCount" value="3" checked> ' + esc(t("themeForm.count3")) + '</label>'
+		+ '<label><input type="radio" name="seTCount" value="4"> ' + esc(t("themeForm.count4")) + '</label>';
+	openModal('<h3>' + esc(t("themeForm.title")) + '</h3>'
+		+ '<div class="field"><label>' + esc(t("themeForm.name")) + '</label><input type="text" id="seTName"></div>'
+		+ '<div class="field"><label>' + esc(t("themeForm.quality")) + '</label><div class="radio-row">' + typeRadio + '</div></div>'
+		+ '<div class="field"><label>' + esc(t("themeForm.count")) + '</label><div class="radio-row">' + countRadio + '</div></div>'
+		+ '<div class="field"><label>' + esc(t("themeForm.entryTime")) + '</label><input type="date" id="seTTime"></div>'
+		+ '<div id="seTSuits"></div>'
+		+ '<div style="font-size:12px;color:#888">' + esc(t("themeForm.autoPoolTip")) + '</div>'
+		+ '<div class="actions"><button class="btn-save" id="btnTSSave">' + esc(t("admin.save")) + '</button>'
+		+ '<button class="btn-cancel" id="btnCancelModal">' + esc(t("admin.cancel")) + '</button></div>');
+	renderThemeSuitBlocks();
+	document.querySelectorAll('input[name="seTCount"]').forEach(function (el) {
+		el.addEventListener("change", renderThemeSuitBlocks);
+	});
+	$("btnTSSave").addEventListener("click", saveThemeEditor);
+	$("btnCancelModal").addEventListener("click", closeModal);
+}
+
+function renderThemeSuitBlocks() {
+	const count = parseInt(document.querySelector('input[name="seTCount"]:checked').value, 10);
+	const wrap = $("seTSuits");
+	wrap.innerHTML = "";
+	for (let i = 0; i < count; i++) {
+		const div = document.createElement("div");
+		div.className = "field";
+		div.style.cssText = "border-top:1px dashed #ddd;padding-top:10px";
+		div.innerHTML = '<label>' + esc(t("themeForm.suitNo", { n: i + 1 })) + '</label>'
+			+ '<input type="text" id="seTSName' + i + '" placeholder="套装名称">'
+			+ '<div class="radio-row" style="margin:6px 0">'
+			+ '<label><input type="radio" name="seTPC' + i + '" value="6" checked> ' + esc(t("admin.partCount6")) + '</label>'
+			+ '<label><input type="radio" name="seTPC' + i + '" value="7"> ' + esc(t("admin.partCount7")) + '</label></div>'
+			+ '<input type="file" id="seTSFileF' + i + '" accept="image/*">'
+			+ '<input type="text" id="seTSPathF' + i + '" placeholder="' + esc(t("admin.imagePath")) + '（女装）" style="margin-top:4px">'
+			+ '<input type="file" id="seTSFileM' + i + '" accept="image/*" style="margin-top:4px">'
+			+ '<input type="text" id="seTSPathM' + i + '" placeholder="' + esc(t("admin.imagePath")) + '（男装）" style="margin-top:4px">';
+		wrap.appendChild(div);
+		$("seTSFileF" + i).addEventListener("change", function (e) { onThemeImage(e, i, "F"); });
+		$("seTSFileM" + i).addEventListener("change", function (e) { onThemeImage(e, i, "M"); });
+	}
+}
+
+function onThemeImage(e, i, which) {
+	const file = e.target.files && e.target.files[0];
+	if (!file) return;
+	const reader = new FileReader();
+	reader.onload = function (ev) {
+		if (!themeUploads[i]) themeUploads[i] = {};
+		themeUploads[i][which] = ev.target.result;
+	};
+	reader.readAsDataURL(file);
+}
+
+function saveThemeEditor() {
+	const name = $("seTName").value.trim();
+	if (!name) { alert(t("msg.themeNameEmpty")); return; }
+	const type = document.querySelector('input[name="seTType"]:checked').value;
+	const count = parseInt(document.querySelector('input[name="seTCount"]:checked').value, 10);
+	const entryTime = $("seTTime").value || null;
+
+	const suitNames = [];
+	const entries = [];
+	for (let i = 0; i < count; i++) {
+		const sn = $("seTSName" + i).value.trim();
+		if (!sn) { alert(t("msg.themeSuitNameEmpty", { n: i + 1 })); return; }
+		if (getSuit(sn) || suitNames.indexOf(sn) >= 0) { alert(t("msg.themeSuitExists", { n: i + 1, name: sn })); return; }
+		const pc = parseInt(document.querySelector('input[name="seTPC' + i + '"]:checked').value, 10);
+		const pathF = $("seTSPathF" + i).value.trim();
+		const pathM = $("seTSPathM" + i).value.trim();
+		const up = themeUploads[i] || {};
+		const entry = { name: sn, type: type, partCount: pc, prices: PRICE_SCHEMES[schemeKeyOf(type, pc)].prices.slice() };
+		if (pathF) entry.femaleImage = pathF;
+		if (pathM) entry.maleImage = pathM;
+		if (up.F) { idbImages[idbKey(sn, "female")] = up.F; IDB.set(idbKey(sn, "female"), up.F).catch(function (e) { console.error(e); }); }
+		if (up.M) { idbImages[idbKey(sn, "male")] = up.M; IDB.set(idbKey(sn, "male"), up.M).catch(function (e) { console.error(e); }); }
+		entries.push(entry);
+		suitNames.push(sn);
+	}
+
+	/* 保存时装 */
+	entries.forEach(function (en) { customSuits.push(en); });
+	saveCustomSuits();
+
+	/* 保存主题（自动标记主题序号，不显示） */
+	const seq = nextThemeSeq();
+	customThemes.push({ seq: seq, name: name, entryTime: entryTime, pooled: false, suits: suitNames, custom: true });
+	saveCustomThemes();
+
+	/* 自动入池：未入池主题超过 4 个时，最旧的一个自动入池 */
+	const upThemes = unpooledThemes();
+	if (upThemes.length > 4) {
+		const oldest = upThemes[0];
+		themeOverrides[String(oldest.seq)] = Object.assign({}, themeOverrides[String(oldest.seq)], { pooled: true });
+		saveThemeOverrides();
+	}
+
+	closeModal();
+	render();
+	alert(t("msg.themeSaved", { name: name, seq: seq, count: count })
+		+ "\n\n" + t("msg.themeNeedImages"));
 }

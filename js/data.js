@@ -15,7 +15,7 @@
  * ------------------------------------------------------------------------- */
 const TEXT = {
   "site.title": "洛克王国 · 皮卡商店 时装许愿星计算器",
-  "site.subtitle": "勾选配件/整套时装 = 已拥有；毕业所需许愿星（当前缺口）、总时装数、总配件数、已拥有配件等会自动更新 · 数据自动保存在本地浏览器",
+  "site.subtitle": "勾选配件 / 整套时装 / 整个主题 = 已拥有；毕业所需许愿星、当前缺口（已入池）、未入池许愿星总数等自动更新 · 数据自动保存在本地浏览器",
   "site.disclaimer": "非官方粉丝工具 · 与腾讯/魔方工作室无关 · 素材来源于游戏内截图 · 仅供玩家交流参考",
 
   "btn.clear": "清除数据",
@@ -52,14 +52,17 @@ const TEXT = {
     "1. 首次使用时，请在「已有许愿星库存」中填写你当前的许愿星数量，然后点击「提交已有库存」，之后才能标记配件。",
     "2. 标记配件为已拥有时，系统会自动从库存中扣除对应许愿星；取消标记时自动返还；库存不足则禁止标记。",
     "3. 每天新增许愿星时，填写「今日许愿星获取量」（如 15、20、25），点击「提交今日获取量」，会自动累加到库存。",
-    "4. 毕业所需许愿星（当前缺口）= 购买所有未拥有配件所需的许愿星；还需许愿星 = 缺口 − 已有库存。",
-    "5. 勾选整套时装 = 一次性勾选该套装全部配件（同样按上述规则扣/返许愿星）。",
+    "4. 毕业所需许愿星 = 购买所有未拥有配件（含未入池）所需的许愿星；当前缺口许愿星只算已入池的时装；还需许愿星 = 毕业所需 − 已有库存。",
+    "5. 勾选整套时装 = 一次性勾选该套装全部配件；勾选整个主题 = 一次性勾选该主题全部时装（同样按上述规则扣/返许愿星）。",
     "6. 如果许愿星库存录入错误，可以直接修改「已有许愿星库存」，然后点击「提交已有库存」进行修正。",
     "7. 清除全部数据时，已购配件消耗的许愿星会自动返还至库存。"
   ].join("<br>"),
 
   "summary.totalStars": "许愿星总数",
-  "summary.needStars": "毕业所需许愿星（当前缺口）",
+  "summary.needStars": "毕业所需许愿星",
+  "summary.gapStars": "当前缺口许愿星（已入池）",
+  "summary.unpooledStars": "未入池许愿星总数",
+  "summary.unpooledSuits": "未入池时装数",
   "summary.totalSuits": "总时装数",
   "summary.totalParts": "总配件数",
   "summary.ownedParts": "已拥有配件",
@@ -67,13 +70,22 @@ const TEXT = {
   "summary.ownedSuits": "已毕业套装",
   "summary.ownedValue": "已拥有许愿星价值",
 
+  "theme.unpooled": "未入池",
+  "theme.pooled": "已入池",
+  "theme.entryTime": "入池时间",
+  "theme.entryTimeLabel": "预计 {date} 入池",
+  "theme.entryTimeUnknown": "入池时间待定",
+  "theme.whole": "勾选该主题全部时装",
+  "theme.quality": "主题品质：{type}",
+
   "filter.label": "筛选：",
   "filter.all": "全部",
   "filter.gold": "只显示金装",
   "filter.purple": "只显示紫装",
   "filter.fav": "只显示收藏",
+  "filter.themeHint": "套装按主题分组展示，默认按主题顺序排列",
   "sort.label": "排序：",
-  "sort.default": "默认顺序",
+  "sort.default": "默认顺序（按主题）",
   "sort.missingAsc": "优先展示缺口小",
   "sort.missingDesc": "优先展示缺口大",
   "sort.progressAsc": "优先展示进度低",
@@ -110,6 +122,8 @@ const TEXT = {
   "admin.partCount6": "6 个配件",
   "admin.partCount7": "7 个配件",
   "admin.prices": "各配件价格（合计自动计算）",
+  "admin.theme": "所属主题",
+  "admin.themeNone": "（请选择主题）",
   "admin.imageFemale": "女装图片",
   "admin.imageMale": "男装图片",
   "admin.imageHint": "女装图和男装图分开上传/填写；上传的图片自动存入浏览器，放入仓库 images/ 文件夹的图片按 images/<套装名>女装.png、images/<套装名>男装.png 命名即可长期保留",
@@ -123,6 +137,16 @@ const TEXT = {
   "admin.downloadImageF": "⬇ 下载女装图（放入 images/ 文件夹）",
   "admin.downloadImageM": "⬇ 下载男装图（放入 images/ 文件夹）",
   "admin.fullPrice": "整套合计：{n} 许愿星",
+
+  "themeForm.title": "➕ 添加新主题（一个主题 = 3 或 4 套时装）",
+  "themeForm.name": "主题名称",
+  "themeForm.quality": "主题品质（该主题所有时装品质一致）",
+  "themeForm.count": "该主题含几套时装",
+  "themeForm.count3": "3 套",
+  "themeForm.count4": "4 套",
+  "themeForm.entryTime": "入池时间（可留空，之后在编辑模式填写）",
+  "themeForm.suitNo": "时装 {n}",
+  "themeForm.autoPoolTip": "保存后自动标记主题序号；若未入池主题超过 4 个，最旧的一个会自动入池。",
 
   "account.title": "👤 账号管理",
   "account.help": "每个账号拥有独立的许愿星库存、已拥有配件、收藏与性别设置，互不影响；时装、图片、页面文字等配置所有账号共用。",
@@ -146,8 +170,13 @@ const TEXT = {
   "edit.resetText": "重置文字修改",
   "edit.resetSuits": "重置套装修改",
   "edit.resetCustom": "移除全部自定义套装",
-  "edit.modeHint": "编辑模式：点击页面任意文字可直接修改；套装卡片上有 ⚙ 编辑按钮；点击卡片上的 金装/紫装 徽标可切换类型。",
+  "edit.exportBasic": "💾 导出时装基本信息（供同步到 GitHub）",
+  "edit.modeHint": "编辑模式：点击页面任意文字可直接修改；套装卡片上有 ⚙ 编辑按钮；点击卡片上的 金装/紫装 徽标可切换类型；每个主题行可设置「已入池」与「入池时间」。",
   "edit.suitCount6_7": "6件⇄7件",
+
+  "tutorial.title": "📖 使用说明：查看未毕业套装已有的配件",
+  "tutorial.summary": "点击查看教程（可折叠）",
+  "tutorial.desc": "点击任意套装卡片上的配件标签（如「连衣 74」）即可标记已拥有；标签被划线表示已拥有。查看某套未毕业时装已拥有哪些配件：直接看该套装卡片上哪些配件标签被划线，或参考下方示意图：",
 
   "msg.confirmClearData": "确定要清除所有已拥有标记和收藏吗？\n\n通过「正常模式」购买的配件许愿星将返还至库存；通过「补录模式」记录的配件不影响库存。\n预算历史保留。",
   "msg.confirmClearStock": "确定要清除已有许愿星库存吗？\n\n此操作不会清空卡池数据、收藏数据和预算历史。",
@@ -170,7 +199,14 @@ const TEXT = {
   "msg.textSaved": "文字修改已保存。",
   "msg.pricesSaved": "价格体系已保存。",
   "msg.exportDataJs": "已生成 data.js 代码片段并下载。\n\n请把文件内容合并进 js/data.js 的 BUILTIN_SUITS 部分，即可让新套装永久内置。",
-  "msg.overridesReset": "已重置。"
+  "msg.exportBasic": "已导出「时装基本信息.json」（仅含时装/主题的基础信息，不含拥有情况和许愿星数据）。\n\n把它发给我，我即可据此同步更新 GitHub 网页的数据。",
+  "msg.overridesReset": "已重置。",
+  "msg.themeNameEmpty": "主题名称不能为空。",
+  "msg.themeSuitNameEmpty": "第 {n} 套时装名称不能为空。",
+  "msg.themeSuitExists": "第 {n} 套时装「{name}」与已有套装重名。",
+  "msg.themeSaved": "主题「{name}」已保存（主题序号 {seq}，共 {count} 套时装）。\n\n最旧的未入池主题已自动入池（保持 4 个未入池）。",
+  "msg.themeSavedNoPool": "主题「{name}」已保存（主题序号 {seq}，共 {count} 套时装）。\n\n当前未入池主题数量未超过 4 个，无需自动入池。",
+  "msg.themeNeedImages": "建议为每套时装上传女装图和男装图（也可稍后在编辑模式补充）。"
 };
 
 /* ---------------------------------------------------------------------------
@@ -236,7 +272,7 @@ const BUILTIN_SUIT_NAMES = {
   ],
   // 新加入的 28 套：默认紫装·6件
   purpleNew: [
-    "乌拉塔印象", "千棘盔印象", "卡瓦重印象", "古卷执政官印象", "古卷画魔像印象",
+    "乌拉塔印象", "千棘盔印象", "卡瓦重印象", "古卷执政官印象", "古卷匣魔像印象",
     "咕德帽帽印象", "圆号鱼印象", "小丑公爵印象", "巨鼓象印象", "幻影灵菇印象",
     "怖哭菇印象", "捕尘长绒印象", "朔夜伊芙印象", "水灵印象",
     "流浪鼠印象", "海豹船长印象", "混乱鱿彩印象", "火神印象", "烟花伯爵印象",
@@ -261,6 +297,35 @@ function buildBuiltinSuits() {
 
 const BUILTIN_SUITS = buildBuiltinSuits();
 
+/* ---------------------------------------------------------------------------
+ * 4) 主题（主题 = 一组 3~4 套时装；同一主题品质一致）
+ *    数据来源：参考文本「时装和主题的对应关系及入池时间」
+ *    - seq：主题序号（按顺序 1,2,3...，网页上不显示，仅用于排序/参考）
+ *    - entryTime：入池时间（YYYY-MM-DD，尚未提供时为 null，可在编辑模式填写）
+ *    - pooled：默认是否已入池；编辑模式可手动改；entryTime 到了也会自动入池；
+ *      上传新主题时最旧的未入池主题会自动入池（一般保持 4 个未入池）
+ *    入池状态最终以 themeOverrides（浏览器本地）为准，data.js 只是初始值。
+ * ------------------------------------------------------------------------- */
+const THEMES = [
+	{ seq: 1,  name: "毛绒巡林者",           entryTime: null, pooled: true,  suits: ["音速犬印象", "厉毒修萝印象", "岚鸟印象"] },
+	{ seq: 2,  name: "重逢圆舞曲",           entryTime: null, pooled: true,  suits: ["翠顶夫人印象", "花魁蜂后印象", "卡洛儿印象"] },
+	{ seq: 3,  name: "雪山研究员",           entryTime: null, pooled: true,  suits: ["雪灵印象", "獠牙猪印象", "蒲公英娃娃印象", "圣代甜甜印象"] },
+	{ seq: 4,  name: "誓约圣骑士",           entryTime: null, pooled: true,  suits: ["星光狮印象", "烈火守护印象", "皇家狮鹫印象"] },
+	{ seq: 5,  name: "壁炉边伙伴",           entryTime: null, pooled: true,  suits: ["蹦蹦花印象", "熔岩布丁印象", "爵士鹿印象"] },
+	{ seq: 6,  name: "治愈童话书",           entryTime: null, pooled: true,  suits: ["花衣蝶印象", "白金独角兽印象", "红绒十字印象"] },
+	{ seq: 7,  name: "晚安睡衣派对",         entryTime: null, pooled: true,  suits: ["雪影娃娃印象", "梦悠悠印象", "电球咩咩印象", "幽冥眼印象"] },
+	{ seq: 8,  name: "膨!炼金药剂",          entryTime: null, pooled: true,  suits: ["琉璃水母印象", "九幽菇印象", "嘟嘟锅印象"] },
+	{ seq: 9,  name: "野外考察队",           entryTime: null, pooled: true,  suits: ["魔草巫灵印象", "奇丽花印象", "高脚鹬印象", "魔眷鸟印象"] },
+	{ seq: 10, name: "深海的馈赠",           entryTime: null, pooled: true,  suits: ["海豹船长印象", "千棘盔印象", "迷迷箱怪印象"] },
+	{ seq: 11, name: "魔法嘉年华",           entryTime: null, pooled: true,  suits: ["烟花伯爵印象", "巨鼓象印象", "咕德帽帽印象", "小丑公爵印象"] },
+	{ seq: 12, name: "梦境流浪者",           entryTime: null, pooled: true,  suits: ["幻影灵菇印象", "怖哭菇印象", "流浪鼠印象"] },
+	{ seq: 13, name: "乐团协奏曲",           entryTime: null, pooled: true,  suits: ["圆号鱼印象", "里拉鳐印象", "卡瓦重印象", "蹦床松鼠印象"] },
+	{ seq: 14, name: "秘密潜入计划",         entryTime: null, pooled: false, suits: ["朔夜伊芙印象", "乌拉塔印象", "裘卡印象"] },
+	{ seq: 15, name: "年轮诗社",             entryTime: null, pooled: false, suits: ["古卷执政官印象", "古卷匣魔像印象", "画间法师手印象", "画间沉铁兽印象"] },
+	{ seq: 16, name: "初心的继承者",         entryTime: null, pooled: false, suits: ["水灵印象", "魔力猫印象", "火神印象"] },
+	{ seq: 17, name: "怎么可以用魔法扫帚当画笔", entryTime: null, pooled: false, suits: ["食尘短绒印象", "捕尘长绒印象", "混乱鱿彩印象", "秩序鱿墨印象"] }
+];
+
 /* 默认图片：images/<套装名>女装.png（女）/ images/<套装名>男装.png（男）
  * 男装图片尚未提供时，网页会自动回退使用女装图。 */
 function defaultImagePath(name, gender) {
@@ -269,4 +334,4 @@ function defaultImagePath(name, gender) {
 }
 
 /* 数据库版本号（用于备份/迁移） */
-const DATA_VERSION = 4;
+const DATA_VERSION = 5;

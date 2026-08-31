@@ -194,12 +194,85 @@ body.edit-mode .suit-count-toggle { display: inline-flex !important; }
 .chart-legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
 .fav-empty-msg { display: flex; align-items: center; justify-content: center; color: #999; font-size: 14px; height: 220px; }
 
+/* ---- 教程（可折叠） ---- */
+.tutorial-panel {
+	background: var(--card);
+	border: 1px solid #e8eaee;
+	border-radius: 10px;
+	padding: 12px 16px;
+	margin-bottom: 18px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
+}
+.tutorial-panel summary {
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: bold;
+	color: var(--primary);
+}
+.tutorial-body { margin-top: 10px; font-size: 13px; color: #555; line-height: 1.7; }
+.tutorial-body img { max-width: 100%; border: 1px solid #ddd; border-radius: 8px; margin-top: 8px; }
+
+/* ---- 主题分组 ---- */
+.theme-row {
+	margin-bottom: 22px;
+}
+.theme-label {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	font-size: 12px;
+	font-weight: bold;
+	color: #555;
+	margin-bottom: 8px;
+	padding-left: 8px;
+	border-left: 3px solid var(--primary);
+}
+.theme-unpooled-badge {
+	background: #fff3e0;
+	color: #e67e22;
+	border: 1px solid #e67e22;
+	border-radius: 10px;
+	padding: 0 8px;
+	font-size: 11px;
+	font-weight: normal;
+}
+.theme-entry-hint { color: var(--warn); font-weight: normal; font-size: 11px; }
+.theme-whole {
+	font-size: 12px;
+	font-weight: normal;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	user-select: none;
+	color: var(--sub);
+}
+.theme-whole input { cursor: pointer; accent-color: var(--success); }
+.theme-edit-controls {
+	display: none;
+	font-weight: normal;
+	font-size: 12px;
+	align-items: center;
+	gap: 10px;
+	color: var(--sub);
+}
+body.edit-mode .theme-edit-controls { display: inline-flex; }
+.theme-edit-controls label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.theme-edit-controls input[type="date"] { border: 1px solid #ccc; border-radius: 5px; padding: 2px 6px; font-size: 12px; }
+.theme-suits {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+	gap: 16px;
+}
+
 /* ---- 筛选栏 ---- */
 .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 20px; }
 .filter-bar select, .filter-bar input {
 	padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px;
 }
 .filter-bar label { font-size: 14px; color: var(--sub); }
+.filter-hint { font-size: 12px; color: #aaa; }
 
 /* ---- 套装卡片网格 ---- */
 .fav-section { margin-bottom: 30px; }
