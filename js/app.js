@@ -839,7 +839,8 @@ function createThemeRow(th, infos, showEntryTime) {
 
 	row.appendChild(label);
 	const grid = document.createElement("div");
-	grid.className = "theme-suits";
+	/* 按主题件数标记列数（手机端 4件=2列 / 3件=3列，见 style.css） */
+	grid.className = "theme-suits count-" + th.suits.length;
 	infos.forEach(function (i) { grid.appendChild(createCard(i)); });
 	row.appendChild(grid);
 	return row;

@@ -265,7 +265,6 @@ body.edit-mode .theme-edit-controls { display: inline-flex; }
 	grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
 	gap: 16px;
 }
-
 /* ---- 筛选栏 ---- */
 .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 20px; }
 .filter-bar select, .filter-bar input {
@@ -427,7 +426,44 @@ body.edit-mode .edit-toolbar { display: flex; }
 .price-editor-row .scheme-name { width: 90px; font-weight: bold; font-size: 13px; }
 .price-editor-row input { width: 56px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 5px; text-align: center; }
 
+/* 手机端：一个主题 4 件时装 = 一行 2 件；3 件 = 一行 3 件 */
 @media (max-width: 700px) {
 	body { padding: 12px; }
 	.summary-item .num { font-size: 22px; }
+
+	/* 主题行内的套装网格按主题件数定列数 */
+	.theme-suits { gap: 8px; }
+	.theme-suits.count-4 { grid-template-columns: repeat(2, 1fr); }
+	.theme-suits.count-3 { grid-template-columns: repeat(3, 1fr); }
+	/* 收藏区（非主题分组）手机端一行 2 件 */
+	.suits { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+	/* 小卡片压缩 */
+	.card { padding: 8px; border-radius: 10px; }
+	.card-header { margin-bottom: 5px; }
+	.suit-name { font-size: 12px; }
+	.suit-type-badge { font-size: 9px; padding: 0 4px; }
+	.suit-meta { font-size: 10px; margin-bottom: 4px; }
+	.suit-cost { font-size: 10px; }
+	.part { font-size: 9px; padding: 2px 5px; }
+	.progress-bar-bg { height: 6px; margin: 6px 0; }
+	.suit-image { margin-bottom: 6px; border-radius: 6px; }
+	.whole-row { font-size: 10px; margin: 3px 0 4px; }
+	.whole-row input { width: 14px; height: 14px; }
+	.fav-btn { font-size: 15px; padding: 0 2px; }
+
+	/* 主题行 */
+	.theme-label { font-size: 11px; padding-left: 6px; margin-bottom: 6px; }
+	.theme-whole { font-size: 10px; }
+	.theme-unpooled-badge { font-size: 10px; padding: 0 6px; }
+	.theme-entry-hint { font-size: 10px; }
+
+	/* 顶部按钮与面板 */
+	.top-bar { gap: 8px; }
+	.top-bar button { padding: 7px 10px; font-size: 13px; }
+	.account-row select { min-width: 120px; font-size: 13px; padding: 7px 8px; }
+	.budget-btn { padding: 7px 12px; font-size: 13px; }
+
+	/* 图表 */
+	.chart-wrapper { transform: scale(.92); }
 }
